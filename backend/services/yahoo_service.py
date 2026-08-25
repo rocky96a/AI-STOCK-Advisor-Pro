@@ -1,5 +1,7 @@
 import yfinance as yf
 import pandas as pd
+import time
+import random
 
 from backend.data.symbol_utils import normalize_symbol
 from backend.data.cache import cache_get, cache_set, TTL_INTRADAY, TTL_DAILY
@@ -42,15 +44,49 @@ class YahooService:
                 f"period={period} interval={interval}"
             )
 
-            df = yf.download(
-                symbol,
-                period=period,
-                interval=interval,
-                progress=False,
-                auto_adjust=False,
-                prepost=False,
-                threads=False,
-            )
+            last_error = None
+
+            for attempt in range(1, 4):
+                try:
+                    df = yf.download(
+                        symbol,
+                        period=period,
+                        interval=interval,
+                        progress=False,
+                        auto_adjust=False,
+                        prepost=False,
+                        threads=False,
+                    )
+
+                    if df is not None and not df.empty:
+                        break
+
+                    print(
+                        f"[Yahoo] Empty response attempt "
+                        f"{attempt}/3 for {symbol}"
+                    )
+
+                except Exception as exc:
+                    last_error = exc
+
+                    print(
+                        f"[Yahoo] Attempt {attempt}/3 failed "
+                        f"for {symbol}: {exc}"
+                    )
+
+                    if attempt < 3:
+                        time.sleep(
+                            min(8, (2 ** (attempt - 1)) + random.random())
+                        )
+
+            else:
+                df = None
+
+            if df is None and last_error is not None:
+                print(
+                    f"[Yahoo] All download attempts failed "
+                    f"for {symbol}: {last_error}"
+                )
 
         except Exception as e:
 
@@ -472,25 +508,14 @@ class YahooService:
         # ======================================================
         # YAHOO INFO
         # ======================================================
-
+        #
+        # Disabled intentionally.
+        #
+        # ticker.info creates an additional Yahoo Finance network
+        # request and can trigger YFRateLimitError on Render.
+        # Technical analysis only requires OHLCV data.
+        #
         info = {}
-
-        try:
-
-            ticker = yf.Ticker(
-                symbol
-            )
-
-            info = ticker.info or {}
-
-        except Exception as e:
-
-            print(
-                f"[Yahoo] Info unavailable "
-                f"for {symbol}: {e}"
-            )
-
-            info = {}
 
         # ======================================================
         # TECHNICAL INDICATORS
