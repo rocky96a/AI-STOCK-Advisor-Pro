@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block title %}
+AI Signals — AI Stock Advisor
+{% endblock %}
+
+{% block content %}
+
+<div class="page-shell ai-signals-page">
+    <div class="page-heading">
+        <div>
+            <h1>AI Signals</h1>
+            <p>AI-ranked BUY and SELL opportunities from the live market scan.</p>
+        </div>
+    </div>
+
+    {% include "components/top_picks.html" %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,135 @@
+from pathlib import Path
+
+import pandas as pd
+
+from backend.ml.dataset import DatasetBuilder
+
+
+class GlobalDatasetBuilder:
+
+    DEFAULT_SYMBOLS = [
+        "RELIANCE.NS",
+        "TCS.NS",
+        "INFY.NS",
+        "HDFCBANK.NS",
+        "ICICIBANK.NS",
+        "SBIN.NS",
+        "ITC.NS",
+        "BHARTIARTL.NS",
+        "LT.NS",
+        "AXISBANK.NS",
+        "KOTAKBANK.NS",
+        "BAJFINANCE.NS",
+        "MARUTI.NS",
+        "SUNPHARMA.NS",
+        "TITAN.NS",
+        "WIPRO.NS",
+        "ONGC.NS",
+        "NTPC.NS",
+        "ULTRACEMCO.NS",
+        "HINDUNILVR.NS",
+    ]
+
+    def __init__(self):
+        self.builder = DatasetBuilder()
+
+    def build(
+        self,
+        symbols=None,
+        period="2y",
+        interval="1d",
+    ):
+        symbols = (
+            symbols
+            if symbols is not None
+            else self.DEFAULT_SYMBOLS
+        )
+
+        datasets = []
+
+        for symbol in symbols:
+
+            print(
+                f"[GlobalDataset] Loading {symbol}..."
+            )
+
+            try:
+                df = self.builder.create(
+                    symbol=symbol,
+                    period=period,
+                    interval=interval,
+                )
+            except Exception as exc:
+                print(
+                    f"[GlobalDataset] Failed "
+                    f"{symbol}: {exc}"
+                )
+                continue
+
+            if df is None or df.empty:
+                print(
+                    f"[GlobalDataset] No usable data "
+                    f"for {symbol}"
+                )
+                continue
+
+            df = df.copy()
+
+            df["SYMBOL"] = symbol
+
+            datasets.append(df)
+
+            print(
+                f"[GlobalDataset] {symbol}: "
+                f"{len(df)} rows"
+            )
+
+        if not datasets:
+            return None
+
+        global_df = pd.concat(
+            datasets,
+            ignore_index=True,
+        )
+
+        global_df = (
+            global_df
+            .replace(
+                [float("inf"), float("-inf")],
+                pd.NA,
+            )
+            .dropna(
+                subset=[
+                    *self.builder.FEATURE_COLUMNS,
+                    "LABEL",
+                    "TRADE_RETURN",
+                ]
+            )
+            .reset_index(drop=True)
+        )
+
+        print()
+        print("==============================")
+        print("GLOBAL DATASET")
+        print("==============================")
+        print("rows:", len(global_df))
+        print(
+            "stocks:",
+            global_df["SYMBOL"].nunique(),
+        )
+
+        print()
+        print(
+            global_df["SYMBOL"]
+            .value_counts()
+        )
+
+        print()
+        print("labels:")
+        print(
+            global_df["LABEL"]
+            .value_counts()
+            .sort_index()
+        )
+
+        return global_df

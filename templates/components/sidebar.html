@@ -1,0 +1,121 @@
+  <aside class="sidebar">
+
+    <div class="logo">
+
+        <i class="fa-solid fa-chart-line"></i>
+
+        <div>
+
+            <h2>AI STOCK</h2>
+
+            <span>Advisor Pro</span>
+
+        </div>
+
+    </div>
+
+    <div class="menu-title">
+        MAIN
+    </div>
+
+    <ul class="menu">
+
+        <li class="{{ 'active' if request.path == '/' else '' }}" onclick="window.location.href='/'">
+
+            <i class="fa-solid fa-house"></i>
+
+            <span>Dashboard</span>
+
+        </li>
+
+        <li>
+
+            <i class="fa-solid fa-chart-line"></i>
+
+            <span>Markets</span>
+
+        </li>
+
+        <li>
+
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+
+            <span>Screener</span>
+
+        </li>
+
+        <li class="{{ 'active' if request.path == '/ai-signals' else '' }}" onclick="window.location.href='/ai-signals'">
+
+            <i class="fa-solid fa-brain"></i>
+
+            <span>AI Signals</span>
+
+        </li>
+
+    </ul>
+
+    <div class="menu-title">
+        PORTFOLIO
+    </div>
+
+    <ul class="menu">
+
+        <li class="{{ 'active' if request.path == '/watchlist' else '' }}" onclick="window.location.href='/watchlist'">
+
+            <i class="fa-solid fa-star"></i>
+
+            <span>Watchlist</span>
+
+        </li>
+
+        <li class="{{ 'active' if request.path == '/portfolio' else '' }}" onclick="window.location.href='/portfolio'">
+
+            <i class="fa-solid fa-wallet"></i>
+
+            <span>Portfolio</span>
+
+        </li>
+
+        <li>
+
+            <i class="fa-solid fa-bell"></i>
+
+            <span>Alerts</span>
+
+        </li>
+
+    </ul>
+
+    <div class="menu-title">
+        INFORMATION
+    </div>
+
+    <ul class="menu">
+
+        <li>
+
+            <i class="fa-solid fa-newspaper"></i>
+
+            <span>Market News</span>
+
+        </li>
+
+        <li class="{{ 'active' if request.path == '/ai-chat' else '' }}" onclick="window.location.href='/ai-chat'">
+
+            <i class="fa-solid fa-robot"></i>
+
+            <span>AI Chat</span>
+
+        </li>
+
+        <li>
+
+            <i class="fa-solid fa-gear"></i>
+
+            <span>Settings</span>
+
+        </li>
+
+    </ul>
+
+</aside>

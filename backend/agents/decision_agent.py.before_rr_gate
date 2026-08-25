@@ -1,0 +1,840 @@
+from backend.utils.trade_levels import compute as compute_trade_levels
+"""
+Decision Agent
+
+Combines:
+    1. Weighted technical analysis
+    2. ML prediction
+    3. Market structure
+    4. Candlestick confirmation
+    5. Momentum
+    6. Volume
+    7. Support / resistance
+    8. ATR risk management
+
+Important:
+    Technical analysis describes market evidence.
+    ML provides an additional probability estimate.
+
+    When technical analysis and ML disagree strongly,
+    the system returns WAIT / CONFLICTED instead of
+    forcing a BUY or SELL decision.
+"""
+
+TECH_WEIGHT = 0.60
+ML_WEIGHT = 0.40
+
+MAX_TECHNICAL_CONFIDENCE = 90.0
+
+
+def _clamp(value, minimum=0.0, maximum=100.0):
+    """Keep a number inside a safe range."""
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return minimum
+
+    return max(
+        minimum,
+        min(value, maximum),
+    )
+
+
+def _holding_period_estimate(
+    entry,
+    target1,
+    atr,
+):
+    """
+    Estimate trading days required to reach target1.
+
+    This is only a heuristic.
+    It is NOT a prediction of an actual exit date.
+    """
+
+    if (
+        entry is None
+        or target1 is None
+        or atr in (None, 0)
+    ):
+        return None
+
+    try:
+        entry = float(entry)
+        target1 = float(target1)
+        atr = float(atr)
+    except (TypeError, ValueError):
+        return None
+
+    distance = abs(
+        target1 - entry
+    )
+
+    # Conservative assumption:
+    # approximately 40% of ATR is captured per day.
+    daily_progress = atr * 0.40
+
+    if daily_progress <= 0:
+        return None
+
+    days = distance / daily_progress
+
+    low = max(
+        1,
+        round(days * 0.60),
+    )
+
+    high = max(
+        low,
+        round(days * 1.60),
+    )
+
+    return {
+        "estimated_days": round(
+            days,
+            1,
+        ),
+        "estimated_range": (
+            f"{low}-{high} trading days"
+        ),
+    }
+
+
+def _technical_confidence(
+    technical_result,
+):
+    """
+    Convert the technical score difference into
+    a bounded confidence value.
+
+    A score difference is NOT a real probability,
+    therefore we deliberately cap it.
+    """
+
+    difference = abs(
+        float(
+            technical_result.get(
+                "score_difference",
+                0.0,
+            )
+        )
+    )
+
+    # Score difference:
+    # 0   -> 40%
+    # 15  -> 55%
+    # 30  -> 70%
+    # 50+ -> capped at 90%
+
+    confidence = (
+        40.0
+        + difference
+    )
+
+    return round(
+        _clamp(
+            confidence,
+            40.0,
+            MAX_TECHNICAL_CONFIDENCE,
+        ),
+        2,
+    )
+
+
+def _get_component(
+    technical_result,
+    name,
+):
+    """Safely retrieve a technical component."""
+
+    components = technical_result.get(
+        "components",
+        {},
+    )
+
+    component = components.get(
+        name,
+        {},
+    )
+
+    if not isinstance(component, dict):
+        return {}
+
+    return component
+
+
+def _risk_levels(
+    signal,
+    entry,
+    atr,
+    support_resistance=None,
+):
+    """
+    Build trade levels using the shared technical trade-level engine.
+
+    These are planning levels, not guaranteed prices.
+    """
+
+    if entry is None or atr in (None, 0):
+        return {
+            "entry": entry,
+            "stoploss": None,
+            "target1": None,
+            "target2": None,
+            "risk_reward": None,
+            "risk_percent": None,
+        }
+
+    try:
+        entry = float(entry)
+        atr = float(atr)
+    except (TypeError, ValueError):
+        return {
+            "entry": entry,
+            "stoploss": None,
+            "target1": None,
+            "target2": None,
+            "risk_reward": None,
+            "risk_percent": None,
+        }
+
+    supports = []
+    resistances = []
+
+    if isinstance(support_resistance, dict):
+
+        supports = [
+            float(level["price"])
+            for level in support_resistance.get(
+                "support_levels",
+                [],
+            )
+            if isinstance(level, dict)
+            and level.get("price") is not None
+        ]
+
+        resistances = [
+            float(level["price"])
+            for level in support_resistance.get(
+                "resistance_levels",
+                [],
+            )
+            if isinstance(level, dict)
+            and level.get("price") is not None
+        ]
+
+    return compute_trade_levels(
+        signal=signal,
+        price=entry,
+        atr=atr,
+        resistances=resistances,
+        supports=supports,
+    )
+
+
+class DecisionAgent:
+
+    @staticmethod
+    def decide(
+        technical_result,
+        ml_result,
+        price,
+        atr,
+    ):
+        """
+        Produce the final trading decision.
+
+        Possible final signals:
+
+            BUY
+            SELL
+            WAIT
+
+        WAIT is used when evidence conflicts.
+        """
+
+        if not isinstance(
+            technical_result,
+            dict,
+        ):
+            return {
+                "available": False,
+                "reason": (
+                    "Invalid technical analysis."
+                ),
+            }
+
+        technical_signal = technical_result.get(
+            "signal",
+            "HOLD",
+        )
+
+        technical_strength = technical_result.get(
+            "strength",
+            "WEAK",
+        )
+
+        technical_confidence = (
+            _technical_confidence(
+                technical_result
+            )
+        )
+
+        # --------------------------------------------------
+        # ML
+        # --------------------------------------------------
+
+        ml_available = bool(
+            ml_result
+            and ml_result.get(
+                "available",
+                False,
+            )
+        )
+
+        ml_signal = (
+            ml_result.get(
+                "signal"
+            )
+            if ml_available
+            else None
+        )
+
+        ml_direction = (
+            ml_result.get(
+                "direction"
+            )
+            if ml_available
+            else None
+        )
+
+        ml_confidence = _clamp(
+            ml_result.get(
+                "confidence",
+                0.0,
+            )
+            if ml_available
+            else 0.0
+        )
+
+        # --------------------------------------------------
+        # Technical direction
+        # --------------------------------------------------
+
+        technical_is_buy = (
+            technical_signal
+            in (
+                "BUY",
+                "BULLISH",
+                "STRONG BUY",
+            )
+        )
+
+        technical_is_sell = (
+            technical_signal
+            in (
+                "SELL",
+                "BEARISH",
+                "STRONG SELL",
+            )
+        )
+
+        ml_is_buy = (
+            ml_direction == "UP"
+            or ml_signal == "BUY"
+        )
+
+        ml_is_sell = (
+            ml_direction == "DOWN"
+            or ml_signal == "SELL"
+        )
+
+        # --------------------------------------------------
+        # Component analysis
+        # --------------------------------------------------
+
+        candle = _get_component(
+            technical_result,
+            "candle",
+        )
+
+        momentum = _get_component(
+            technical_result,
+            "momentum",
+        )
+
+        volume = _get_component(
+            technical_result,
+            "volume",
+        )
+
+        structure = _get_component(
+            technical_result,
+            "structure",
+        )
+
+        support_resistance = _get_component(
+            technical_result,
+            "support_resistance",
+        )
+
+        volatility = _get_component(
+            technical_result,
+            "volatility",
+        )
+
+        candle_signal = candle.get(
+            "signal"
+        )
+
+        momentum_signal = momentum.get(
+            "signal"
+        )
+
+        volume_signal = volume.get(
+            "signal"
+        )
+
+        structure_signal = structure.get(
+            "signal"
+        )
+
+        # --------------------------------------------------
+        # Determine agreement
+        # --------------------------------------------------
+
+        agreement = None
+        conflict = False
+
+        if (
+            ml_available
+            and technical_is_buy
+        ):
+
+            agreement = ml_is_buy
+
+            if ml_is_sell:
+                conflict = True
+
+        elif (
+            ml_available
+            and technical_is_sell
+        ):
+
+            agreement = ml_is_sell
+
+            if ml_is_buy:
+                conflict = True
+
+        # --------------------------------------------------
+        # Final signal
+        # --------------------------------------------------
+
+        reasons = []
+
+        if conflict:
+
+            final_signal = "WAIT"
+
+            decision_mode = (
+                "TECHNICAL_ML_CONFLICT"
+            )
+
+            reasons.append(
+                "Technical analysis and ML disagree."
+            )
+
+            reasons.append(
+                "Wait for confirmation before entering."
+            )
+
+        elif technical_is_buy:
+
+            final_signal = "BUY"
+
+            decision_mode = (
+                "TECHNICAL_CONFIRMED"
+            )
+
+            reasons.append(
+                "Technical analysis is bullish."
+            )
+
+        elif technical_is_sell:
+
+            final_signal = "SELL"
+
+            decision_mode = (
+                "TECHNICAL_CONFIRMED"
+            )
+
+            reasons.append(
+                "Technical analysis is bearish."
+            )
+
+        else:
+
+            final_signal = "WAIT"
+
+            decision_mode = (
+                "NO_CLEAR_TECHNICAL_SIGNAL"
+            )
+
+            reasons.append(
+                "Technical analysis does not show "
+                "a clear trade direction."
+            )
+
+        # --------------------------------------------------
+        # Confidence
+        # --------------------------------------------------
+
+        if (
+            ml_available
+            and (
+                technical_is_buy
+                or technical_is_sell
+            )
+        ):
+
+            blended_confidence = (
+                technical_confidence
+                * TECH_WEIGHT
+                + ml_confidence
+                * ML_WEIGHT
+            )
+
+        else:
+
+            blended_confidence = (
+                technical_confidence
+            )
+
+        if conflict:
+
+            # Conflict should significantly reduce
+            # confidence.
+
+            final_confidence = (
+                blended_confidence
+                * 0.55
+            )
+
+        else:
+
+            final_confidence = (
+                blended_confidence
+            )
+
+        # WAIT should never appear as an extremely
+        # confident trade recommendation.
+
+        if final_signal == "WAIT":
+
+            final_confidence = min(
+                final_confidence,
+                60.0,
+            )
+
+        final_confidence = round(
+            _clamp(
+                final_confidence
+            ),
+            2,
+        )
+
+        # --------------------------------------------------
+        # Candlestick confirmation
+        # --------------------------------------------------
+
+        if (
+            candle_signal == "BEARISH"
+        ):
+
+            reasons.append(
+                "Candlestick analysis is bearish."
+            )
+
+        elif (
+            candle_signal == "BULLISH"
+        ):
+
+            reasons.append(
+                "Candlestick analysis is bullish."
+            )
+
+        # --------------------------------------------------
+        # Momentum confirmation
+        # --------------------------------------------------
+
+        if (
+            momentum_signal == "BEARISH"
+        ):
+
+            reasons.append(
+                "Momentum is bearish."
+            )
+
+        elif (
+            momentum_signal == "BULLISH"
+        ):
+
+            reasons.append(
+                "Momentum is bullish."
+            )
+
+        # --------------------------------------------------
+        # Volume confirmation
+        # --------------------------------------------------
+
+        if (
+            volume_signal == "BEARISH"
+        ):
+
+            reasons.append(
+                "Volume confirms bearish pressure."
+            )
+
+        elif (
+            volume_signal == "BULLISH"
+        ):
+
+            reasons.append(
+                "Volume confirms bullish pressure."
+            )
+
+        # --------------------------------------------------
+        # Structure
+        # --------------------------------------------------
+
+        if (
+            structure_signal == "BULLISH"
+        ):
+
+            reasons.append(
+                "Market structure is bullish."
+            )
+
+        elif (
+            structure_signal == "BEARISH"
+        ):
+
+            reasons.append(
+                "Market structure is bearish."
+            )
+
+        # --------------------------------------------------
+        # Structure conflict
+        # --------------------------------------------------
+
+        if (
+            technical_is_sell
+            and structure_signal == "BULLISH"
+        ):
+
+            reasons.append(
+                "Bearish setup conflicts with "
+                "bullish market structure."
+            )
+
+        elif (
+            technical_is_buy
+            and structure_signal == "BEARISH"
+        ):
+
+            reasons.append(
+                "Bullish setup conflicts with "
+                "bearish market structure."
+            )
+
+        # --------------------------------------------------
+        # Volatility
+        # --------------------------------------------------
+
+        volatility_state = volatility.get(
+            "volatility_state"
+        )
+
+        if volatility_state:
+
+            reasons.append(
+                f"Volatility state: "
+                f"{volatility_state}."
+            )
+
+        # --------------------------------------------------
+        # Support / resistance
+        # --------------------------------------------------
+
+        breakout = (
+            support_resistance.get(
+                "breakout",
+                False,
+            )
+        )
+
+        breakdown = (
+            support_resistance.get(
+                "breakdown",
+                False,
+            )
+        )
+
+        if breakout:
+
+            reasons.append(
+                "Resistance breakout detected."
+            )
+
+        if breakdown:
+
+            reasons.append(
+                "Support breakdown detected."
+            )
+
+        # --------------------------------------------------
+        # Risk levels
+        # --------------------------------------------------
+
+        risk_signal = (
+            final_signal
+            if final_signal in (
+                "BUY",
+                "SELL",
+            )
+            else None
+        )
+
+        risk = _risk_levels(
+            risk_signal,
+            price,
+            atr,
+            support_resistance,
+        )
+
+        holding = (
+            _holding_period_estimate(
+                risk.get("entry"),
+                risk.get("target1"),
+                atr,
+            )
+        )
+
+        # --------------------------------------------------
+        # Final explanation
+        # --------------------------------------------------
+
+        if conflict:
+
+            reasons.append(
+                "Final recommendation is WAIT "
+                "because the technical and ML "
+                "signals conflict."
+            )
+
+        elif final_signal == "BUY":
+
+            reasons.append(
+                "Bullish evidence is stronger than "
+                "bearish evidence."
+            )
+
+        elif final_signal == "SELL":
+
+            reasons.append(
+                "Bearish evidence is stronger than "
+                "bullish evidence."
+            )
+
+        # --------------------------------------------------
+        # Return
+        # --------------------------------------------------
+
+        return {
+            "available": True,
+
+            "final_signal": final_signal,
+
+            "final_confidence": final_confidence,
+
+            "decision_mode": decision_mode,
+
+            "agreement": agreement,
+
+            "conflict": conflict,
+
+            "technical_signal": technical_signal,
+
+            "technical_strength": technical_strength,
+
+            "technical_confidence": (
+                technical_confidence
+            ),
+
+            "ml_available": ml_available,
+
+            "ml_signal": ml_signal,
+
+            "ml_direction": ml_direction,
+
+            "ml_confidence": (
+                ml_confidence
+            ),
+
+            "confidence_breakdown": {
+                "technical": {
+                    "weight": TECH_WEIGHT,
+                    "confidence": (
+                        technical_confidence
+                    ),
+                    "signal": (
+                        technical_signal
+                    ),
+                },
+
+                "ml": {
+                    "weight": ML_WEIGHT,
+                    "confidence": (
+                        ml_confidence
+                    ),
+                    "signal": ml_signal,
+                    "direction": ml_direction,
+                    "validation_accuracy": (
+                        ml_result.get(
+                            "validation_accuracy"
+                        )
+                        if ml_available
+                        else None
+                    ),
+                },
+            },
+
+            "entry": risk.get(
+                "entry"
+            ),
+
+            "stoploss": risk.get(
+                "stoploss"
+            ),
+
+            "target1": risk.get(
+                "target1"
+            ),
+
+            "target2": risk.get(
+                "target2"
+            ),
+
+            "risk_reward": risk.get(
+                "risk_reward"
+            ),
+
+            "risk_percent": risk.get(
+                "risk_percent"
+            ),
+
+            "holding_period": holding,
+
+            "reasons": reasons,
+        }

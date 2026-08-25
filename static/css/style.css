@@ -1,0 +1,117 @@
+body{
+
+    background:#111827;
+
+    margin:0;
+
+    font-family:Segoe UI,sans-serif;
+
+}
+
+.main-content{
+
+    margin-left:260px;
+
+    padding:20px;
+
+}
+
+/* ---------- Global Theme ---------- */
+
+body{
+    background:#111827;
+    color:#f8fafc;
+}
+
+h1,h2,h3,h4,h5,h6{
+    color:#ffffff;
+}
+
+p,
+span,
+small,
+label,
+strong,
+li{
+    color:#cbd5e1;
+}
+
+a{
+    color:inherit;
+    text-decoration:none;
+}
+
+.card,
+.dashboard-card,
+.ai-card,
+.news-card,
+.agents-card,
+.chart-card{
+    color:#ffffff;
+}
+
+.ai-recommendation,
+.ai-card{
+    color:#ffffff;
+}
+
+.ai-card h1,
+.ai-card h2,
+.ai-card h3,
+.ai-card h4,
+.ai-card h5{
+    color:#ffffff;
+}
+
+.ai-card p{
+    color:#cbd5e1;
+}
+
+.ai-card strong{
+    color:#22c55e;
+}
+
+.progress{
+    background:#334155;
+    border-radius:10px;
+    overflow:hidden;
+    height:10px;
+}
+
+.progress-bar{
+    background:linear-gradient(90deg,#22c55e,#16a34a);
+    height:100%;
+}
+
+
+
+/* =========================================================
+   AI SIGNALS PAGE
+   ========================================================= */
+
+.page-shell {
+    width: 100%;
+}
+
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 4px 0 18px;
+}
+
+.page-heading h1 {
+    margin: 0;
+    font-size: 25px;
+}
+
+.page-heading p {
+    margin: 5px 0 0;
+    color: #8b98b1;
+    font-size: 13px;
+}
+
+.ai-signals-page .top-picks-card {
+    margin-bottom: 0;
+}

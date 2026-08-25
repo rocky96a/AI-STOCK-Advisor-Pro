@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+
+{% block title %}
+AI Stock Advisor
+{% endblock %}
+
+{% block content %}
+
+{% include "components/company_card.html" %}
+
+
+{% include "components/verdict.html" %}
+
+<div class="dashboard">
+
+    <!-- Left Side -->
+    <div class="left-panel">
+
+        {% include "components/chart.html" %}
+
+        {% include "components/news.html" %}
+
+        {% include "components/technical_summary.html" %}
+
+    </div>
+
+    <!-- Right Side -->
+    <div class="right-panel">
+
+        <!-- ML Models -->
+        {% include "components/ml_models.html" %}
+
+        <!-- Strategy Votes -->
+        {% include "components/strategy_votes.html" %}
+
+        <!-- AI Reasoning -->
+        {% include "components/ai_reasoning.html" %}
+
+    </div>
+
+</div>
+
+{% endblock %}

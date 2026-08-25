@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block title %}AI Chat — AI Stock Advisor{% endblock %}
+
+{% block body_class %}chat-page-body{% endblock %}
+
+{% block content %}
+<div class="chat-fullscreen">
+    <header class="chat-topbar">
+        <div class="chat-brand">
+            <div class="chat-brand-icon"><i class="fa-solid fa-robot"></i></div>
+            <div>
+                <h1>AI Stock Advisor Chat</h1>
+                <p>Ask about stocks, technicals, signals, risk and market data.</p>
+            </div>
+        </div>
+
+        <a class="chat-back-btn" href="/">
+            <i class="fa-solid fa-chart-line"></i>
+            Dashboard
+        </a>
+    </header>
+
+    <main class="chat-window">
+        <section class="chat-messages" id="chatMessages">
+            <div class="chat-message assistant">
+                <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
+                <div class="chat-bubble">
+                    <strong>AI Stock Advisor</strong>
+                    <p>Hello! Ask me about a stock, market signal, technical setup, or today's AI recommendations.</p>
+                </div>
+            </div>
+        </section>
+
+        <form class="chat-composer" id="chatComposer">
+            <textarea
+                id="chatInput"
+                rows="1"
+                placeholder="Ask about RELIANCE, TCS, NIFTY 50..."
+                autocomplete="off"
+            ></textarea>
+            <button type="submit" aria-label="Send message">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </form>
+        <div class="chat-disclaimer">
+            AI-generated analysis is informational and not financial advice.
+        </div>
+    </main>
+</div>
+{% endblock %}

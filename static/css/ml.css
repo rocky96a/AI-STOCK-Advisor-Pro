@@ -1,0 +1,49 @@
+.ml-card{
+
+    background:#161b22;
+
+    border-radius:14px;
+
+    padding:20px;
+
+    margin-top:20px;
+
+}
+
+.ml-card h2{
+
+    margin-bottom:15px;
+
+    color:#ffffff;
+
+}
+
+.ml-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.ml-table th{
+
+    color:#9aa4b2;
+
+    padding:12px;
+
+    text-align:left;
+
+    border-bottom:1px solid #2b3138;
+
+}
+
+.ml-table td{
+
+    padding:14px;
+
+    border-bottom:1px solid #2b3138;
+
+    color:white;
+
+}

@@ -1,0 +1,81 @@
+<section class="verdict-card" id="verdictCard" data-state="idle">
+
+    <div class="verdict-top">
+
+        <div class="verdict-symbol">
+            <span class="eyebrow">Final Verdict</span>
+            <h2 id="verdictSymbol">Search a stock</h2>
+        </div>
+
+        <div class="verdict-badge" id="verdictBadge">
+            <span id="verdictSignal">--</span>
+        </div>
+
+    </div>
+
+    <div class="verdict-body">
+
+        <div class="verdict-gauge">
+            <svg viewBox="0 0 140 80" class="gauge-svg">
+                <path class="gauge-track" d="M10,75 A60,60 0 0 1 130,75" />
+                <path class="gauge-fill" id="gaugeFill" d="M10,75 A60,60 0 0 1 130,75" />
+            </svg>
+            <div class="gauge-readout">
+                <strong id="verdictConfidence">--</strong>
+                <span>confidence</span>
+            </div>
+        </div>
+
+        <div class="verdict-reason">
+            <p id="verdictHeadline">Search a symbol above to get a combined verdict from ML, technical structure, multi-timeframe trend and news.</p>
+
+            <div class="confluence-bar" id="confluenceBar" aria-label="Signal agreement across sources">
+                <span class="confluence-seg" data-source="ML" style="--w:25%"></span>
+                <span class="confluence-seg" data-source="Technical" style="--w:25%"></span>
+                <span class="confluence-seg" data-source="Strategies" style="--w:25%"></span>
+                <span class="confluence-seg" data-source="News" style="--w:25%"></span>
+            </div>
+            <div class="confluence-legend">
+                <span><i class="dot ml"></i>ML</span>
+                <span><i class="dot technical"></i>Technical</span>
+                <span><i class="dot strategy"></i>Strategies</span>
+                <span><i class="dot news"></i>News</span>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="verdict-levels" id="verdictLevels">
+
+        <div class="level-item">
+            <span class="level-label">Entry</span>
+            <strong id="v-entry">--</strong>
+        </div>
+
+        <div class="level-item level-stop">
+            <span class="level-label">Stop Loss</span>
+            <strong id="v-stoploss">--</strong>
+        </div>
+
+        <div class="level-item level-target">
+            <span class="level-label">Target 1</span>
+            <strong id="v-target1">--</strong>
+        </div>
+
+        <div class="level-item level-target">
+            <span class="level-label">Target 2</span>
+            <strong id="v-target2">--</strong>
+        </div>
+
+        <div class="level-item">
+            <span class="level-label">Risk : Reward</span>
+            <strong id="v-rr">--</strong>
+        </div>
+
+    </div>
+
+    <div class="verdict-footer" id="verdictReasons">
+        <!-- populated by JS: list of reasons behind the verdict -->
+    </div>
+
+</section>

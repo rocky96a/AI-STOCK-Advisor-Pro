@@ -1,0 +1,141 @@
+:root{
+
+    --bg:#0b1220;
+
+    --card:#172033;
+
+    --hover:#22304b;
+
+    --blue:#3b82f6;
+
+    --green:#22c55e;
+
+    --text:#ffffff;
+
+    --gray:#8b98b1;
+
+}
+
+.sidebar{
+
+    width:260px;
+
+    height:100vh;
+
+    position:fixed;
+
+    left:0;
+
+    top:0;
+
+    background:var(--bg);
+
+    border-right:1px solid rgba(255,255,255,.08);
+
+    overflow:auto;
+
+}
+
+.logo{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+    padding:30px;
+
+}
+
+.logo i{
+
+    font-size:34px;
+
+    color:var(--green);
+
+}
+
+.logo h2{
+
+    color:white;
+
+    margin:0;
+
+}
+
+.logo span{
+
+    color:var(--gray);
+
+    font-size:13px;
+
+}
+
+.menu-title{
+
+    color:#6b7a95;
+
+    font-size:11px;
+
+    font-weight:bold;
+
+    padding:20px 30px 10px;
+
+    letter-spacing:2px;
+
+}
+
+.menu{
+
+    list-style:none;
+
+    padding:0;
+
+    margin:0;
+
+}
+
+.menu li{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+    padding:16px 30px;
+
+    color:#c7d3e6;
+
+    cursor:pointer;
+
+    transition:.3s;
+
+}
+
+.menu li i{
+
+    width:20px;
+
+    text-align:center;
+
+}
+
+.menu li:hover{
+
+    background:var(--hover);
+
+    color:white;
+
+}
+
+.menu li.active{
+
+    background:linear-gradient(90deg,#2563eb,#1d4ed8);
+
+    color:white;
+
+    border-left:4px solid #60a5fa;
+
+}

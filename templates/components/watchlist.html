@@ -1,0 +1,49 @@
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/watchlist.css') }}">
+
+{% extends "layout.html" %}
+
+{% block title %}Watchlist - AI Stock Advisor{% endblock %}
+
+{% block content %}
+
+<div class="page-container">
+
+    <section class="watchlist-page">
+
+        <div class="page-header">
+            <div>
+                <h1>Watchlist</h1>
+                <p>AI-ranked stocks with risk and opportunity signals.</p>
+            </div>
+        </div>
+
+        <div class="watchlist-table-wrapper">
+            <table class="watchlist-table">
+                <thead>
+                    <tr>
+                        <th>Stock</th>
+                        <th>Price</th>
+                        <th>Signal</th>
+                        <th>Confidence</th>
+                        <th>Risk</th>
+                        <th>Risk / Reward</th>
+                        <th>Safety Score</th>
+                    </tr>
+                </thead>
+
+                <tbody id="watchlistBody">
+                    <tr>
+                        <td colspan="7">Loading watchlist...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}
+
+<script src="{{ url_for('static', filename='js/watchlist.js') }}"></script>

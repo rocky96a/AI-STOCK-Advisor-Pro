@@ -1,0 +1,56 @@
+<div class="header">
+
+    <div class="search-container">
+
+        <input
+            type="text"
+            id="symbol"
+            placeholder="Search Stock or Index (Example: RELIANCE, NIFTY 50)">
+
+        <button id="analyzeBtn">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            Analyze
+
+        </button>
+
+    </div>
+
+    <div class="header-icons">
+
+        <button title="Watchlist">
+            <i class="fa-solid fa-star"></i>
+        </button>
+
+        <button title="Notifications">
+            <i class="fa-solid fa-bell"></i>
+        </button>
+
+        <button id="themeBtn" title="Theme">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+
+        <div class="profile-menu" id="profileMenu">
+            <button title="Profile" id="profileBtn">
+                <i class="fa-solid fa-user"></i>
+                <span id="profileUsername" class="profile-username"></span>
+            </button>
+
+            <div class="profile-dropdown" id="profileDropdown">
+                <div class="profile-dropdown-user">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span id="profileDropdownUsername"></span>
+                </div>
+                <button id="logoutBtn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Logout
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/header-auth.js') }}"></script>

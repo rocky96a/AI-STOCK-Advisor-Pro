@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Flask / app runtime
+instance/
+.env
+*.log
+
+# User database (contains password hashes - never commit this)
+backend/data/users.db
+backend/data/*.db
+
+# Data cache
+backend/data/cache/*
+!backend/data/cache/.gitkeep
+
+# Trained ML models (usually large/binary - regenerate via /api/train instead of committing)
+backend/ml/models/*
+!backend/ml/models/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,233 @@
+/* =========================================
+   AI SUMMARY
+========================================= */
+
+.ai-summary-card {
+    background: #111827;
+    border: 1px solid #263247;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.ai-summary-card h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    color: #ffffff;
+}
+
+.ai-signal {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 10px 0;
+}
+
+.ai-signal.buy {
+    color: #22c55e;
+}
+
+.ai-signal.sell {
+    color: #ef4444;
+}
+
+.ai-signal.hold {
+    color: #f59e0b;
+}
+
+/* =========================================
+   CONFIDENCE
+========================================= */
+
+.confidence-card {
+    background: #111827;
+    border: 1px solid #263247;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.confidence-value {
+    font-size: 30px;
+    font-weight: 700;
+    color: #60a5fa;
+}
+
+.confidence-bar {
+    width: 100%;
+    height: 10px;
+    background: #1f2937;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.confidence-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+/* =========================================
+   TRADE SETUP
+========================================= */
+
+.trade-setup-card {
+    background: #111827;
+    border: 1px solid #263247;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.trade-setup-card h2 {
+    margin-top: 0;
+    color: #ffffff;
+}
+
+.trade-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.trade-item {
+    background: #172033;
+    border: 1px solid #29364d;
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.trade-label {
+    display: block;
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.trade-value {
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+/* =========================================
+   AI REASONING
+========================================= */
+
+.ai-reasoning-card {
+    background: #111827;
+    border: 1px solid #263247;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.ai-reasoning-card h2 {
+    color: #ffffff;
+    margin-top: 0;
+}
+
+.reason-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #202b3d;
+    color: #cbd5e1;
+}
+
+.reason-item:last-child {
+    border-bottom: none;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+
+    .trade-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .trade-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+/* =========================================
+   FINAL DECISION + MTF
+========================================= */
+
+.decision-mini-grid,
+.decision-meta,
+.mtf-summary,
+.mtf-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.decision-mini-grid { grid-template-columns: repeat(3, 1fr); margin-top: 16px; }
+
+.decision-mini-item,
+.decision-meta > div,
+.mtf-summary > div,
+.mtf-card {
+    background: #172033;
+    border: 1px solid #29364d;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.decision-mini-item span,
+.decision-meta span,
+.mtf-summary span,
+.mtf-card span {
+    display: block;
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.decision-mini-item strong,
+.decision-meta strong,
+.mtf-summary strong,
+.mtf-card strong { color: #ffffff; font-weight: 700; }
+
+.decision-status { margin-top: 12px; color: #cbd5e1; font-size: 13px; }
+
+.decision-meta { grid-template-columns: repeat(3, 1fr); margin: 14px 0 18px; }
+
+.section-subtitle { color: #ffffff; font-size: 15px; margin: 10px 0; }
+
+.mtf-panel { margin-top: 20px; padding-top: 18px; border-top: 1px solid #263247; }
+
+.mtf-header { display: flex; justify-content: space-between; align-items: center; }
+.mtf-header h3 { margin: 0; color: #ffffff; font-size: 16px; }
+.mtf-header span { color: #94a3b8; font-size: 12px; }
+
+.mtf-summary { grid-template-columns: repeat(4, 1fr); margin: 14px 0; }
+.mtf-grid { grid-template-columns: repeat(3, 1fr); }
+
+.mtf-card h4 { color: #ffffff; margin: 0 0 10px; }
+.mtf-card div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid #202b3d;
+}
+.mtf-card div:last-child { border-bottom: none; }
+
+@media (max-width: 700px) {
+    .decision-mini-grid,
+    .decision-meta,
+    .mtf-summary,
+    .mtf-grid { grid-template-columns: 1fr; }
+}

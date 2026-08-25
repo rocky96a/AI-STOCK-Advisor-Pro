@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block title %}Watchlist - AI Stock Advisor{% endblock %}
+
+{% block content %}
+
+<div class="page-container">
+
+    <div class="watchlist-page">
+
+        <div class="watchlist-header">
+            <div>
+                <h1>Market Watchlist</h1>
+                <p>AI-ranked stocks with technical risk and reward analysis.</p>
+            </div>
+
+            <button id="refreshWatchlist" type="button">
+                Refresh
+            </button>
+        </div>
+
+        <div id="watchlistStatus" class="watchlist-status">
+            Loading watchlist...
+        </div>
+
+        <div class="watchlist-table-wrapper">
+
+            <table class="watchlist-table">
+
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Stock</th>
+                        <th>Price</th>
+                        <th>Signal</th>
+                        <th>Confidence</th>
+                        <th>Entry</th>
+                        <th>Stop Loss</th>
+                        <th>Target 1</th>
+                        <th>Target 2</th>
+                        <th>Risk %</th>
+                        <th>R:R</th>
+                        <th>Safety</th>
+                    </tr>
+                </thead>
+
+                <tbody id="watchlistBody">
+
+                    <tr>
+                        <td colspan="12">
+                            Loading...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

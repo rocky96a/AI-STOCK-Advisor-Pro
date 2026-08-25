@@ -1,0 +1,297 @@
+from backend.indicators import trend
+from backend.indicators import momentum
+from backend.indicators import volatility
+from backend.indicators import volume
+from backend.indicators import support_resistance
+from backend.utils import trade_levels
+
+
+class TechnicalAgent:
+
+    @staticmethod
+    def analyze(df):
+
+        # --------------------------------------------------
+        # Data availability guard
+        # --------------------------------------------------
+        # DataEngine may legitimately return None when the
+        # provider has no data for a symbol. Never pass None
+        # into the indicator modules.
+
+        if df is None or df.empty:
+            return {
+                "available": False,
+                "signal": "WAIT",
+                "confidence": 0.0,
+                "score": 0,
+                "strength": "WEAK",
+                "entry": None,
+                "target": None,
+                "target1": None,
+                "target2": None,
+                "stoploss": None,
+                "risk_reward": None,
+                "risk_percent": None,
+                "support": None,
+                "resistance": None,
+                "resistance_1": None,
+                "resistance_2": None,
+                "resistance_3": None,
+                "support_1": None,
+                "support_2": None,
+                "support_3": None,
+                "support_resistance": {
+                    "support_levels": [],
+                    "resistance_levels": [],
+                },
+                "technical": {},
+                "bullish": [],
+                "bearish": [],
+                "reason": "Market data unavailable.",
+            }
+
+        # Apply all indicator modules
+        df = trend.calculate(df)
+        df = momentum.calculate(df)
+        df = volatility.calculate(df)
+        df = volume.calculate(df)
+
+        sr = support_resistance.calculate(df)
+
+        latest = df.iloc[-1]
+
+        score = 0
+
+        bullish = []
+        bearish = []
+
+        # ==========================
+        # EMA Trend
+        # ==========================
+
+        if latest["EMA20"] > latest["EMA50"]:
+            score += 2
+            bullish.append("EMA20 above EMA50")
+        else:
+            score -= 2
+            bearish.append("EMA20 below EMA50")
+
+        # ==========================
+        # RSI
+        # ==========================
+
+        if latest["RSI"] < 30:
+            score += 2
+            bullish.append("RSI Oversold")
+
+        elif latest["RSI"] > 70:
+            score -= 2
+            bearish.append("RSI Overbought")
+
+        # ==========================
+        # MACD
+        # ==========================
+
+        if latest["MACD"] > latest["MACD_SIGNAL"]:
+            score += 2
+            bullish.append("MACD Bullish")
+        else:
+            score -= 2
+            bearish.append("MACD Bearish")
+
+        # ==========================
+        # ADX
+        # ==========================
+
+        if latest["ADX"] > 25:
+            score += 1
+            bullish.append("Strong Trend")
+
+        else:
+            bearish.append("Weak Trend")
+
+        # ==========================
+        # Volume
+        # ==========================
+
+        if latest["CMF"] > 0:
+            score += 1
+            bullish.append("Money Flow Positive")
+
+        else:
+            score -= 1
+            bearish.append("Money Flow Negative")
+
+        # ==========================
+        # Final Signal
+        # ==========================
+        #
+        # A "strong" label requires both indicator agreement and
+        # a reasonably strong trend. ADX below 25 means the market
+        # is not trending strongly, so do not call it STRONG BUY/SELL
+        # merely because several oscillators agree.
+        adx = float(latest["ADX"])
+        raw_strength = abs(score) / 8.0
+
+        if abs(score) >= 5 and adx >= 25:
+            strength = "STRONG"
+        elif abs(score) >= 3:
+            strength = "MODERATE"
+        else:
+            strength = "WEAK"
+
+        if score >= 5 and adx >= 25:
+            signal = "STRONG BUY"
+        elif score >= 2:
+            signal = "BUY"
+        elif score <= -5 and adx >= 25:
+            signal = "STRONG SELL"
+        elif score <= -2:
+            signal = "SELL"
+        else:
+            signal = "HOLD"
+
+        # Confidence measures evidence agreement, not certainty.
+        # Keep it below 90 unless the trend itself is strong.
+        confidence = 45.0 + (raw_strength * 30.0)
+        if adx >= 25:
+            confidence += 10.0
+        else:
+            confidence -= 5.0
+        confidence = round(max(0.0, min(confidence, 90.0)), 2)
+
+        price = float(latest["Close"])
+
+        atr = float(latest["ATR"])
+
+        resistances = [sr["resistance_1"], sr["resistance_2"], sr["resistance_3"]]
+        supports = [sr["support_1"], sr["support_2"], sr["support_3"]]
+
+        levels = trade_levels.compute(
+            signal=signal,
+            price=price,
+            atr=atr,
+            resistances=resistances,
+            supports=supports,
+        )
+
+        return {
+
+            "available": True,
+
+            "signal": signal,
+
+            "confidence": confidence,
+
+            "score": score,
+
+            "strength": strength,
+
+            "entry": levels["entry"],
+
+            "target": levels["target1"],
+
+            "target1": levels["target1"],
+
+            "target2": levels["target2"],
+
+            "stoploss": levels["stoploss"],
+
+            "risk_reward": levels["risk_reward"],
+
+            "risk_percent": levels["risk_percent"],
+
+            "support": sr["support_1"],
+
+            "resistance": sr["resistance_1"],
+
+            "resistance_1": sr["resistance_1"],
+
+            "resistance_2": sr["resistance_2"],
+
+            "resistance_3": sr["resistance_3"],
+
+            "support_1": sr["support_1"],
+
+            "support_2": sr["support_2"],
+
+            "support_3": sr["support_3"],
+
+            "support_resistance": {
+                "support_levels": [
+                    {"price": sr["support_1"]},
+                    {"price": sr["support_2"]},
+                    {"price": sr["support_3"]},
+                ],
+                "resistance_levels": [
+                    {"price": sr["resistance_1"]},
+                    {"price": sr["resistance_2"]},
+                    {"price": sr["resistance_3"]},
+                ],
+            },
+
+            "components": {
+                "momentum": {
+                    "signal": (
+                        "BULLISH" if latest["MACD"] > latest["MACD_SIGNAL"]
+                        else "BEARISH"
+                    )
+                },
+                "volume": {
+                    "signal": (
+                        "BULLISH" if latest["CMF"] > 0
+                        else "BEARISH"
+                    )
+                },
+                "structure": {
+                    "signal": (
+                        "BULLISH"
+                        if latest["EMA20"] > latest["EMA50"]
+                        else "BEARISH"
+                    )
+                },
+                "volatility": {
+                    "volatility_state": (
+                        "HIGH" if latest["ATR"] / latest["Close"] > 0.03
+                        else "NORMAL"
+                    )
+                },
+                "support_resistance": {
+                    "support_levels": [
+                        {"price": sr["support_1"]},
+                        {"price": sr["support_2"]},
+                        {"price": sr["support_3"]},
+                    ],
+                    "resistance_levels": [
+                        {"price": sr["resistance_1"]},
+                        {"price": sr["resistance_2"]},
+                        {"price": sr["resistance_3"]},
+                    ],
+                },
+            },
+
+            "technical":{
+
+                "EMA20":round(latest["EMA20"],2),
+
+                "EMA50":round(latest["EMA50"],2),
+
+                "RSI":round(latest["RSI"],2),
+
+                "MACD":round(latest["MACD"],2),
+
+                "ADX":round(latest["ADX"],2),
+
+                "ATR":round(latest["ATR"],2),
+
+                "CMF":round(latest["CMF"],2),
+
+                "OBV":round(latest["OBV"],2)
+
+            },
+
+            "bullish":bullish,
+
+            "bearish":bearish
+
+        }

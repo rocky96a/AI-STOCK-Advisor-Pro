@@ -1,0 +1,136 @@
+.strategy-panel {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 14px;
+    background: #111827;
+    border: 1px solid #263244;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.live-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: #16351f;
+    color: #4ade80;
+}
+
+.strategy-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+.strategy-card {
+    padding: 16px;
+    border-radius: 10px;
+    background: #182232;
+    border: 1px solid #29364a;
+}
+
+.strategy-card h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.strategy-card strong {
+    font-size: 18px;
+}
+
+.strategy-consensus {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 10px;
+    background: #172033;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.strategy-consensus span {
+    color: #94a3b8;
+}
+
+.strategy-consensus strong {
+    font-size: 20px;
+}
+
+/* =====================================
+   TRADE SETUP
+===================================== */
+
+.trade-setup-card {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 14px;
+    background: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.trade-setup-card .card-header {
+    margin-bottom: 18px;
+}
+
+.trade-setup-card h3 {
+    margin: 0;
+}
+
+.trade-signal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px;
+    margin-bottom: 18px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.trade-signal strong {
+    font-size: 20px;
+}
+
+.trade-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.trade-item {
+    padding: 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.trade-label {
+    display: block;
+    font-size: 12px;
+    opacity: 0.65;
+    margin-bottom: 6px;
+}
+
+.trade-item strong {
+    font-size: 16px;
+}
+
+@media (max-width: 700px) {
+
+    .trade-grid {
+        grid-template-columns: 1fr;
+    }
+
+}

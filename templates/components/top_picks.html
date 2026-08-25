@@ -1,0 +1,32 @@
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/top_picks.css') }}">
+
+<section class="top-picks-card" id="topPicksCard">
+
+    <div class="top-picks-header">
+        <div>
+            <h2>Today's Top Picks</h2>
+            <p class="top-picks-sub">AI-ranked BUY &amp; SELL ideas from the live watchlist scan</p>
+        </div>
+
+        <div class="top-picks-tabs" role="tablist">
+            <button class="tp-tab active" data-tab="buy" type="button">
+                BUY <span id="tpBuyCount" class="tp-count">0</span>
+            </button>
+            <button class="tp-tab" data-tab="sell" type="button">
+                SELL <span id="tpSellCount" class="tp-count">0</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="top-picks-meta">
+        <span id="topPicksStatus">Loading recommendations…</span>
+        <span id="topPicksUpdated" class="tp-updated"></span>
+    </div>
+
+    <div class="top-picks-body">
+        <div id="tpBuyList" class="tp-list active"></div>
+        <div id="tpSellList" class="tp-list"></div>
+    </div>
+
+</section>

@@ -1,0 +1,363 @@
+/* ==========================================================
+   DASHBOARD — DESIGN SYSTEM
+   Trading-terminal aesthetic: deep charcoal surface, hairline
+   borders, monospace for numbers, functional bull/bear/neutral
+   color coding (green/red/amber — finance convention, not decor).
+   ========================================================== */
+
+:root {
+    --surface-0: #0b0f14;
+    --surface-1: #12181f;
+    --surface-2: #1a2129;
+    --border-hairline: #232c36;
+
+    --text-primary: #e9eef3;
+    --text-muted: #7c8894;
+    --text-faint: #4b5560;
+
+    --bull: #17c987;
+    --bull-soft: rgba(23, 201, 135, 0.12);
+    --bear: #ef4a56;
+    --bear-soft: rgba(239, 74, 86, 0.12);
+    --neutral: #f0b90b;
+    --neutral-soft: rgba(240, 185, 11, 0.12);
+
+    --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", "Consolas", monospace;
+
+    --radius-md: 10px;
+    --radius-lg: 16px;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+/* ---------- Dashboard grid ---------- */
+
+.dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.left-panel,
+.right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.top-row {
+    display: none; /* superseded by the unified verdict card */
+}
+
+/* ---------- Shared card shell ---------- */
+
+.dashboard .left-panel > *,
+.dashboard .right-panel > * {
+    background: var(--surface-1);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-lg);
+}
+
+/* ==========================================================
+   VERDICT CARD — the signature element.
+   One clear answer, its confidence, which sources agree,
+   and the actionable trade levels. Nothing else competes
+   with it for attention.
+   ========================================================== */
+
+.verdict-card {
+    background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface-1) 65%);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px 18px;
+    font-family: var(--font-body);
+    position: relative;
+    overflow: hidden;
+}
+
+.verdict-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--text-faint);
+    transition: background 0.3s ease;
+}
+
+.verdict-card[data-signal="BUY"]::before,
+.verdict-card[data-signal="STRONG_BUY"]::before { background: var(--bull); }
+.verdict-card[data-signal="SELL"]::before,
+.verdict-card[data-signal="STRONG_SELL"]::before { background: var(--bear); }
+.verdict-card[data-signal="HOLD"]::before { background: var(--neutral); }
+
+.verdict-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.verdict-symbol .eyebrow {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.verdict-symbol h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.verdict-badge {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: var(--surface-0);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.verdict-card[data-signal="BUY"] .verdict-badge,
+.verdict-card[data-signal="STRONG_BUY"] .verdict-badge {
+    background: var(--bull-soft);
+    border-color: var(--bull);
+    color: var(--bull);
+}
+
+.verdict-card[data-signal="SELL"] .verdict-badge,
+.verdict-card[data-signal="STRONG_SELL"] .verdict-badge {
+    background: var(--bear-soft);
+    border-color: var(--bear);
+    color: var(--bear);
+}
+
+.verdict-card[data-signal="HOLD"] .verdict-badge {
+    background: var(--neutral-soft);
+    border-color: var(--neutral);
+    color: var(--neutral);
+}
+
+.verdict-body {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 24px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.verdict-gauge {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.gauge-svg { width: 140px; height: 80px; }
+
+.gauge-track {
+    fill: none;
+    stroke: var(--surface-0);
+    stroke-width: 10;
+    stroke-linecap: round;
+}
+
+.gauge-fill {
+    fill: none;
+    stroke: var(--text-faint);
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-dasharray: 188.4;
+    stroke-dashoffset: 188.4;
+    transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease;
+}
+
+.verdict-card[data-signal="BUY"] .gauge-fill,
+.verdict-card[data-signal="STRONG_BUY"] .gauge-fill { stroke: var(--bull); }
+.verdict-card[data-signal="SELL"] .gauge-fill,
+.verdict-card[data-signal="STRONG_SELL"] .gauge-fill { stroke: var(--bear); }
+.verdict-card[data-signal="HOLD"] .gauge-fill { stroke: var(--neutral); }
+
+.gauge-readout {
+    position: absolute;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: var(--font-mono);
+}
+
+.gauge-readout strong {
+    font-size: 20px;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.gauge-readout span {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+}
+
+.verdict-reason p {
+    margin: 0 0 14px;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.confluence-bar {
+    display: flex;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--surface-0);
+    margin-bottom: 8px;
+}
+
+.confluence-seg {
+    flex: 0 0 var(--w, 25%);
+    background: var(--text-faint);
+    transition: background 0.3s ease;
+}
+
+.confluence-seg[data-lean="bull"] { background: var(--bull); }
+.confluence-seg[data-lean="bear"] { background: var(--bear); }
+.confluence-seg[data-lean="neutral"] { background: var(--neutral); }
+
+.confluence-legend {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.confluence-legend .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    margin-right: 5px;
+}
+
+/* ---------- Trade levels row ---------- */
+
+.verdict-levels {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-hairline);
+}
+
+.level-item {
+    background: var(--surface-0);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.level-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.level-item strong {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.level-stop strong { color: var(--bear); }
+.level-target strong { color: var(--bull); }
+
+.verdict-footer {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.verdict-footer .reason-chip {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    background: var(--surface-0);
+    border: 1px solid var(--border-hairline);
+    padding: 5px 10px;
+    border-radius: 999px;
+}
+
+.verdict-footer .reason-chip-warn {
+    color: var(--bear);
+    background: var(--bear-soft);
+    border-color: var(--bear);
+}
+
+/* ---------- Idle / no-search state ---------- */
+
+.verdict-card[data-state="idle"] .verdict-levels,
+.verdict-card[data-state="idle"] .confluence-bar,
+.verdict-card[data-state="idle"] .confluence-legend {
+    opacity: 0.35;
+}
+
+/* ---------- Numeric consistency across the dashboard ---------- */
+
+.trade-item strong,
+.decision-mini-item strong,
+#confidenceValue,
+#aiScore {
+    font-family: var(--font-mono);
+}
+
+/* ---------- Trade level legend under the chart ---------- */
+
+.trade-level-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 8px 4px 2px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.trade-level-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.legend-swatch.entry-up { background: var(--bull); }
+.legend-swatch.entry-down { background: var(--bear); }
+.legend-swatch.sl { background: var(--bear); border-top: 1px dashed var(--bear); }
+.legend-swatch.t1 { background: var(--bull); }
+.legend-swatch.t2 { background: #0ea968; }

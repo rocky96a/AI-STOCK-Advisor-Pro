@@ -1,0 +1,85 @@
+.news-card{
+
+    background:#161b22;
+
+    padding:20px;
+
+    border-radius:14px;
+
+    margin-top:20px;
+
+}
+
+.news-summary{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    margin:20px 0;
+
+}
+
+.news-summary h3{
+
+    color:#fff;
+
+}
+
+.news-summary small{
+
+    color:#999;
+
+}
+
+.news-item{
+
+    padding:15px;
+
+    margin-bottom:12px;
+
+    border-bottom:1px solid #2d333b;
+
+}
+
+.news-item h4{
+
+    color:white;
+
+    margin-bottom:8px;
+
+    font-size:15px;
+
+}
+
+.news-item span{
+
+    color:#9aa4b2;
+
+    font-size:13px;
+
+}
+
+.bullish{
+
+    color:#16c784;
+
+    font-weight:bold;
+
+}
+
+.bearish{
+
+    color:#ea3943;
+
+    font-weight:bold;
+
+}
+
+.neutral{
+
+    color:#f4b400;
+
+    font-weight:bold;
+
+}

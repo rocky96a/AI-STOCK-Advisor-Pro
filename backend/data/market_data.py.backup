@@ -1,0 +1,137 @@
+
+import time
+
+import pandas as pd
+import yfinance as yf
+
+
+class MarketData:
+    def get_data(
+    self,
+    symbol,
+    period="2y",
+    interval="1d",
+    retries=3, 
+    ):
+     if not symbol:
+        return None
+
+     symbol = symbol.strip().upper()
+
+    # Yahoo Finance intraday limits.
+     intraday_periods = {
+        "1m": "7d",
+        "2m": "60d",
+        "5m": "60d",
+        "15m": "60d",
+        "30m": "60d",
+        "60m": "730d",
+        "90m": "60d",
+    }
+
+     if interval in intraday_periods:
+        period = intraday_periods[interval]
+
+     for attempt in range(retries):
+        try:
+            ticker = yf.Ticker(symbol)
+
+            df = ticker.history(
+                period=period,
+                interval=interval,
+                auto_adjust=True,
+                actions=False,
+            )
+
+            if df is None or df.empty:
+                if attempt < retries - 1:
+                    time.sleep(1)
+                    continue
+
+                print(
+                    f"[MarketData] No data for "
+                    f"{symbol} "
+                    f"(period={period}, interval={interval})"
+                )
+                return None
+
+            df = df.copy()
+
+            # Remove timezone.
+            if isinstance(
+                df.index,
+                pd.DatetimeIndex,
+            ):
+                try:
+                    if df.index.tz is not None:
+                        df.index = (
+                            df.index.tz_localize(None)
+                        )
+                except Exception:
+                    pass
+
+            df.reset_index(inplace=True)
+
+            df.columns = [
+                str(column).strip()
+                for column in df.columns
+            ]
+
+            required_columns = [
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Volume",
+            ]
+
+            missing = [
+                column
+                for column in required_columns
+                if column not in df.columns
+            ]
+
+            if missing:
+                print(
+                    f"[MarketData] {symbol}: "
+                    f"missing columns: {missing}"
+                )
+                return None
+
+            for column in required_columns:
+                df[column] = pd.to_numeric(
+                    df[column],
+                    errors="coerce",
+                )
+
+            df.dropna(
+                subset=required_columns,
+                inplace=True,
+            )
+
+            df = df[
+                df["Volume"] >= 0
+            ]
+
+            if df.empty:
+                return None
+
+            return df.reset_index(drop=True)
+
+        except Exception as exc:
+            print(
+                f"[MarketData] Attempt "
+                f"{attempt + 1}/{retries} failed "
+                f"for {symbol}: {exc}"
+            )
+
+            if attempt < retries - 1:
+                time.sleep(1)
+            else:
+                return None
+
+     return None
+
+  
+     
+            

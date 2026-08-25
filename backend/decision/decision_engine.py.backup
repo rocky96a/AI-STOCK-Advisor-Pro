@@ -1,0 +1,1572 @@
+import math
+
+from backend.ml.predict import Predictor
+from backend.analysis.technical_analyzer import TechnicalAnalyzer
+from backend.analysis.multi_timeframe_analyzer import (
+    MultiTimeframeAnalyzer,
+)
+
+
+class DecisionEngine:
+
+    # ==========================================================
+    # CONFIGURATION
+    # ==========================================================
+
+    SAFE_CONFIDENCE = 60.0
+    STRONG_CONFIDENCE = 70.0
+
+    COMPONENT_WEIGHT = 15.0
+
+    # Multi-timeframe influence
+    MTF_WEIGHT = 0.35
+    ML_WEIGHT = 0.35
+    TECHNICAL_WEIGHT = 0.30
+
+    # ==========================================================
+    # SAFE HELPERS
+    # ==========================================================
+
+    @staticmethod
+    def _safe_float(value, default=0.0):
+
+        try:
+
+            if value is None:
+                return default
+
+            value = float(value)
+
+            if not math.isfinite(value):
+                return default
+
+            return value
+
+        except (TypeError, ValueError):
+
+            return default
+
+    @staticmethod
+    def _safe_text(
+        value,
+        default="NEUTRAL",
+    ):
+
+        if value is None:
+            return default
+
+        text = str(
+            value
+        ).strip().upper()
+
+        if text in {
+            "BUY",
+            "BULLISH",
+            "UP",
+        }:
+            return "BULLISH"
+
+        if text in {
+            "SELL",
+            "BEARISH",
+            "DOWN",
+        }:
+            return "BEARISH"
+
+        return "NEUTRAL"
+
+    @staticmethod
+    def _safe_strength(value):
+
+        if value is None:
+            return "WEAK"
+
+        text = str(
+            value
+        ).strip().upper()
+
+        if text in {
+            "VERY_STRONG",
+            "VERY STRONG",
+        }:
+            return "VERY_STRONG"
+
+        if text == "STRONG":
+            return "STRONG"
+
+        if text == "MODERATE":
+            return "MODERATE"
+
+        return "WEAK"
+
+    # ==========================================================
+    # COMPONENT SCORE
+    # ==========================================================
+
+    @classmethod
+    def _component_score(
+        cls,
+        signal,
+        strength,
+    ):
+
+        signal = cls._safe_text(
+            signal
+        )
+
+        strength = cls._safe_strength(
+            strength
+        )
+
+        multipliers = {
+            "VERY_STRONG": 1.00,
+            "STRONG": 0.80,
+            "MODERATE": 0.55,
+            "WEAK": 0.25,
+        }
+
+        multiplier = multipliers.get(
+            strength,
+            0.25,
+        )
+
+        score = (
+            cls.COMPONENT_WEIGHT
+            * multiplier
+        )
+
+        if signal == "BULLISH":
+            return score
+
+        if signal == "BEARISH":
+            return -score
+
+        return 0.0
+
+    # ==========================================================
+    # NORMALIZE TECHNICAL COMPONENTS
+    # ==========================================================
+
+    @classmethod
+    def _normalize_components(
+        cls,
+        technical,
+    ):
+
+        raw = technical.get(
+            "components",
+            {},
+        )
+
+        if not isinstance(
+            raw,
+            dict,
+        ):
+            raw = {}
+
+        components = {}
+
+        names = [
+            "candle",
+            "trend",
+            "momentum",
+            "volume",
+            "volatility",
+            "structure",
+            "support_resistance",
+        ]
+
+        for name in names:
+
+            item = raw.get(
+                name,
+                {},
+            )
+
+            if not isinstance(
+                item,
+                dict,
+            ):
+                item = {}
+
+            signal = cls._safe_text(
+                item.get("signal")
+            )
+
+            strength = cls._safe_strength(
+                item.get("strength")
+            )
+
+            components[name] = {
+                "signal": signal,
+                "strength": strength,
+                "score": cls._component_score(
+                    signal,
+                    strength,
+                ),
+            }
+
+        return components
+
+    # ==========================================================
+    # COUNT
+    # ==========================================================
+
+    @staticmethod
+    def _count_components(
+        components,
+    ):
+
+        bullish = 0
+        bearish = 0
+        neutral = 0
+
+        for component in components.values():
+
+            signal = component["signal"]
+
+            if signal == "BULLISH":
+                bullish += 1
+
+            elif signal == "BEARISH":
+                bearish += 1
+
+            else:
+                neutral += 1
+
+        return (
+            bullish,
+            bearish,
+            neutral,
+        )
+
+    # ==========================================================
+    # TECHNICAL DIRECTION
+    # ==========================================================
+
+    @classmethod
+    def _technical_direction(
+        cls,
+        technical,
+        components,
+    ):
+
+        signal = cls._safe_text(
+            technical.get("signal")
+        )
+
+        if signal == "BULLISH":
+            return "BUY"
+
+        if signal == "BEARISH":
+            return "SELL"
+
+        total_score = sum(
+            item["score"]
+            for item in components.values()
+        )
+
+        if total_score > 10:
+            return "BUY"
+
+        if total_score < -10:
+            return "SELL"
+
+        return "HOLD"
+
+    # ==========================================================
+    # ML PROBABILITIES
+    # ==========================================================
+
+    @classmethod
+    def _ml_probabilities(
+        cls,
+        ml,
+    ):
+
+        probabilities = ml.get(
+            "probabilities",
+            {},
+        )
+
+        if not isinstance(
+            probabilities,
+            dict,
+        ):
+            probabilities = {}
+
+        buy = cls._safe_float(
+            probabilities.get("BUY"),
+            0.0,
+        )
+
+        hold = cls._safe_float(
+            probabilities.get("HOLD"),
+            0.0,
+        )
+
+        sell = cls._safe_float(
+            probabilities.get("SELL"),
+            0.0,
+        )
+
+        total = (
+            buy
+            + hold
+            + sell
+        )
+
+        if total <= 0:
+
+            return {
+                "BUY": 0.0,
+                "HOLD": 100.0,
+                "SELL": 0.0,
+            }
+
+        return {
+            "BUY": (
+                buy / total
+            ) * 100.0,
+
+            "HOLD": (
+                hold / total
+            ) * 100.0,
+
+            "SELL": (
+                sell / total
+            ) * 100.0,
+        }
+
+    # ==========================================================
+    # MTF PROBABILITIES
+    # ==========================================================
+
+    @classmethod
+    def _mtf_probabilities(
+        cls,
+        mtf,
+    ):
+
+        if not isinstance(
+            mtf,
+            dict,
+        ):
+            return {
+                "BUY": 0.0,
+                "HOLD": 100.0,
+                "SELL": 0.0,
+            }
+
+        available = cls._safe_float(
+            mtf.get(
+                "available_timeframes",
+                0,
+            )
+        )
+
+        if available <= 0:
+
+            return {
+                "BUY": 0.0,
+                "HOLD": 100.0,
+                "SELL": 0.0,
+            }
+
+        bullish = cls._safe_float(
+            mtf.get(
+                "bullish_timeframes",
+                0,
+            )
+        )
+
+        bearish = cls._safe_float(
+            mtf.get(
+                "bearish_timeframes",
+                0,
+            )
+        )
+
+        neutral = cls._safe_float(
+            mtf.get(
+                "neutral_timeframes",
+                0,
+            )
+        )
+
+        # Full alignment gets strong confidence.
+        if (
+            available >= 3
+            and bullish >= 3
+        ):
+
+            return {
+                "BUY": 90.0,
+                "HOLD": 7.0,
+                "SELL": 3.0,
+            }
+
+        if (
+            available >= 3
+            and bearish >= 3
+        ):
+
+            return {
+                "BUY": 3.0,
+                "HOLD": 7.0,
+                "SELL": 90.0,
+            }
+
+        # General timeframe distribution.
+        total = (
+            bullish
+            + bearish
+            + neutral
+        )
+
+        if total <= 0:
+
+            return {
+                "BUY": 0.0,
+                "HOLD": 100.0,
+                "SELL": 0.0,
+            }
+
+        return {
+            "BUY": (
+                bullish / total
+            ) * 100.0,
+
+            "HOLD": (
+                neutral / total
+            ) * 100.0,
+
+            "SELL": (
+                bearish / total
+            ) * 100.0,
+        }
+
+    # ==========================================================
+    # REASONS
+    # ==========================================================
+
+    @classmethod
+    def _build_reasons(
+        cls,
+        ml,
+        technical,
+        components,
+        mtf,
+        final_signal,
+        final_confidence,
+    ):
+
+        reasons = []
+
+        ml_signal = cls._safe_text(
+            ml.get(
+                "signal",
+                "HOLD",
+            ),
+            "HOLD",
+        )
+
+        technical_signal = cls._safe_text(
+            technical.get(
+                "signal",
+                "HOLD",
+            ),
+            "HOLD",
+        )
+
+        # ------------------------------------------------------
+        # ML
+        # ------------------------------------------------------
+
+        if ml_signal == "BULLISH":
+
+            reasons.append(
+                "ML model favored BUY"
+            )
+
+        elif ml_signal == "BEARISH":
+
+            reasons.append(
+                "ML model favored SELL"
+            )
+
+        else:
+
+            reasons.append(
+                "ML model favored HOLD"
+            )
+
+        # ------------------------------------------------------
+        # Technical
+        # ------------------------------------------------------
+
+        reasons.append(
+            f"Technical engine: "
+            f"{technical_signal}"
+        )
+
+        bullish, bearish, neutral = (
+            cls._count_components(
+                components
+            )
+        )
+
+        if bullish:
+            reasons.append(
+                f"{bullish} technical "
+                f"components are bullish"
+            )
+
+        if bearish:
+            reasons.append(
+                f"{bearish} technical "
+                f"components are bearish"
+            )
+
+        if neutral:
+            reasons.append(
+                f"{neutral} technical "
+                f"components are neutral"
+            )
+
+        # ------------------------------------------------------
+        # Candles
+        # ------------------------------------------------------
+
+        candle = components["candle"]
+
+        if (
+            candle["signal"] == "BEARISH"
+            and candle["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            reasons.append(
+                "Strong bearish "
+                "candlestick pressure"
+            )
+
+        elif (
+            candle["signal"] == "BULLISH"
+            and candle["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            reasons.append(
+                "Strong bullish "
+                "candlestick pressure"
+            )
+
+        # ------------------------------------------------------
+        # Volume
+        # ------------------------------------------------------
+
+        volume = components["volume"]
+
+        if volume["signal"] == "BEARISH":
+
+            reasons.append(
+                "Volume confirms "
+                "bearish pressure"
+            )
+
+        elif volume["signal"] == "BULLISH":
+
+            reasons.append(
+                "Volume confirms "
+                "bullish pressure"
+            )
+
+        # ------------------------------------------------------
+        # Structure
+        # ------------------------------------------------------
+
+        structure = components["structure"]
+
+        if structure["signal"] == "BULLISH":
+
+            reasons.append(
+                "Market structure is bullish"
+            )
+
+        elif structure["signal"] == "BEARISH":
+
+            reasons.append(
+                "Market structure is bearish"
+            )
+
+        # ------------------------------------------------------
+        # Multi-timeframe
+        # ------------------------------------------------------
+
+        if isinstance(
+            mtf,
+            dict,
+        ) and mtf.get(
+            "available",
+            False,
+        ):
+
+            alignment = mtf.get(
+                "alignment",
+                "MIXED",
+            )
+
+            if alignment == "FULL_BULLISH":
+
+                reasons.append(
+                    "Daily + hourly + intraday "
+                    "are bullish"
+                )
+
+            elif alignment == "FULL_BEARISH":
+
+                reasons.append(
+                    "Daily + hourly + intraday "
+                    "are bearish"
+                )
+
+            elif alignment == "MOSTLY_BULLISH":
+
+                reasons.append(
+                    "Most timeframes are bullish"
+                )
+
+            elif alignment == "MOSTLY_BEARISH":
+
+                reasons.append(
+                    "Most timeframes are bearish"
+                )
+
+            elif alignment == "MIXED":
+
+                reasons.append(
+                    "Timeframes are not aligned"
+                )
+
+        # ------------------------------------------------------
+        # ML / Technical disagreement
+        # ------------------------------------------------------
+
+        if (
+            ml_signal == "BULLISH"
+            and technical_signal == "BEARISH"
+        ):
+
+            reasons.append(
+                "ML and technical analysis "
+                "disagree"
+            )
+
+        elif (
+            ml_signal == "BEARISH"
+            and technical_signal == "BULLISH"
+        ):
+
+            reasons.append(
+                "ML and technical analysis "
+                "disagree"
+            )
+
+        # ------------------------------------------------------
+        # Confidence
+        # ------------------------------------------------------
+
+        if (
+            final_confidence
+            < cls.SAFE_CONFIDENCE
+        ):
+
+            reasons.append(
+                "Decision confidence is below "
+                "safe threshold"
+            )
+
+        return reasons
+
+    # ==========================================================
+    # CONTRADICTIONS
+    # ==========================================================
+
+    @classmethod
+    def _detect_contradictions(
+        cls,
+        ml,
+        components,
+        mtf,
+        final_signal,
+    ):
+
+        warnings = []
+
+        ml_signal = cls._safe_text(
+            ml.get(
+                "signal",
+                "HOLD",
+            ),
+            "HOLD",
+        )
+
+        # ------------------------------------------------------
+        # Candle
+        # ------------------------------------------------------
+
+        candle = components["candle"]
+
+        if (
+            final_signal == "BUY"
+            and candle["signal"] == "BEARISH"
+            and candle["strength"] == "VERY_STRONG"
+        ):
+
+            warnings.append(
+                "Very strong bearish "
+                "candlestick opposes BUY"
+            )
+
+        if (
+            final_signal == "SELL"
+            and candle["signal"] == "BULLISH"
+            and candle["strength"] == "VERY_STRONG"
+        ):
+
+            warnings.append(
+                "Very strong bullish "
+                "candlestick opposes SELL"
+            )
+
+        # ------------------------------------------------------
+        # Volume
+        # ------------------------------------------------------
+
+        volume = components["volume"]
+
+        if (
+            final_signal == "BUY"
+            and volume["signal"] == "BEARISH"
+            and volume["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            warnings.append(
+                "Volume confirms bearish "
+                "pressure against BUY"
+            )
+
+        if (
+            final_signal == "SELL"
+            and volume["signal"] == "BULLISH"
+            and volume["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            warnings.append(
+                "Volume confirms bullish "
+                "pressure against SELL"
+            )
+
+        # ------------------------------------------------------
+        # Trend
+        # ------------------------------------------------------
+
+        trend = components["trend"]
+
+        if (
+            final_signal == "BUY"
+            and trend["signal"] == "BEARISH"
+            and trend["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            warnings.append(
+                "Strong bearish trend "
+                "opposes BUY"
+            )
+
+        if (
+            final_signal == "SELL"
+            and trend["signal"] == "BULLISH"
+            and trend["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            warnings.append(
+                "Strong bullish trend "
+                "opposes SELL"
+            )
+
+        # ------------------------------------------------------
+        # MTF
+        # ------------------------------------------------------
+
+        if isinstance(
+            mtf,
+            dict,
+        ):
+
+            alignment = mtf.get(
+                "alignment",
+                "MIXED",
+            )
+
+            if (
+                final_signal == "BUY"
+                and alignment == "FULL_BEARISH"
+            ):
+
+                warnings.append(
+                    "All timeframes are bearish "
+                    "against BUY"
+                )
+
+            if (
+                final_signal == "SELL"
+                and alignment == "FULL_BULLISH"
+            ):
+
+                warnings.append(
+                    "All timeframes are bullish "
+                    "against SELL"
+                )
+
+        # ------------------------------------------------------
+        # ML
+        # ------------------------------------------------------
+
+        if (
+            ml_signal == "BULLISH"
+            and final_signal == "SELL"
+        ):
+
+            warnings.append(
+                "ML BUY signal conflicts with "
+                "technical SELL pressure"
+            )
+
+        elif (
+            ml_signal == "BEARISH"
+            and final_signal == "BUY"
+        ):
+
+            warnings.append(
+                "ML SELL signal conflicts with "
+                "technical BUY pressure"
+            )
+
+        return warnings
+
+    # ==========================================================
+    # MAIN ANALYSIS
+    # ==========================================================
+
+    @classmethod
+    def analyze(
+        cls,
+        df,
+        symbol,
+        model_name=None,
+        dataframes=None,
+    ):
+
+        # ======================================================
+        # ML
+        # ======================================================
+
+        ml = Predictor.predict(
+            df,
+            symbol,
+            model_name=model_name,
+        )
+
+        if not ml.get(
+            "available",
+            False,
+        ):
+
+            return {
+                "available": False,
+                "symbol": symbol,
+                "signal": "HOLD",
+                "direction": "SIDEWAYS",
+                "strength": "WEAK",
+                "confidence": 0.0,
+                "probabilities": {
+                    "BUY": 0.0,
+                    "HOLD": 100.0,
+                    "SELL": 0.0,
+                },
+                "blocked": True,
+                "reasons": [
+                    ml.get(
+                        "reason",
+                        "ML prediction unavailable.",
+                    )
+                ],
+            }
+
+        # ======================================================
+        # TECHNICAL
+        # ======================================================
+
+        technical = TechnicalAnalyzer.analyze(
+            df
+        )
+
+        if not technical.get(
+            "available",
+            False,
+        ):
+
+            return {
+                "available": False,
+                "symbol": symbol,
+                "signal": "HOLD",
+                "direction": "SIDEWAYS",
+                "strength": "WEAK",
+                "confidence": 0.0,
+                "probabilities": {
+                    "BUY": 0.0,
+                    "HOLD": 100.0,
+                    "SELL": 0.0,
+                },
+                "blocked": True,
+                "reasons": [
+                    technical.get(
+                        "reason",
+                        "Technical analysis unavailable.",
+                    )
+                ],
+            }
+
+        # ======================================================
+        # COMPONENTS
+        # ======================================================
+
+        components = (
+            cls._normalize_components(
+                technical
+            )
+        )
+
+        bullish_count, bearish_count, neutral_count = (
+            cls._count_components(
+                components
+            )
+        )
+
+        # ======================================================
+        # ML
+        # ======================================================
+
+        ml_probs = cls._ml_probabilities(
+            ml
+        )
+
+        # ======================================================
+        # TECHNICAL PROBABILITIES
+        # ======================================================
+
+        technical_score = sum(
+            item["score"]
+            for item in components.values()
+        )
+
+        max_score = (
+            len(components)
+            * cls.COMPONENT_WEIGHT
+        )
+
+        if max_score > 0:
+
+            technical_percent = (
+                technical_score
+                / max_score
+            ) * 100.0
+
+        else:
+
+            technical_percent = 0.0
+
+        technical_buy = max(
+            0.0,
+            technical_percent,
+        )
+
+        technical_sell = max(
+            0.0,
+            -technical_percent,
+        )
+
+        technical_hold = max(
+            0.0,
+            100.0
+            - technical_buy
+            - technical_sell,
+        )
+
+        technical_probs = {
+            "BUY": technical_buy,
+            "HOLD": technical_hold,
+            "SELL": technical_sell,
+        }
+
+        # ======================================================
+        # MULTI TIMEFRAME
+        # ======================================================
+
+        if dataframes is not None:
+
+            mtf = MultiTimeframeAnalyzer.analyze(
+                dataframes
+            )
+
+        else:
+
+            mtf = {
+                "available": False,
+                "signal": "NEUTRAL",
+                "alignment": "NO_DATA",
+                "available_timeframes": 0,
+                "bullish_timeframes": 0,
+                "bearish_timeframes": 0,
+                "neutral_timeframes": 0,
+                "bullish_score": 0.0,
+                "bearish_score": 0.0,
+                "score_difference": 0.0,
+                "reasons": [
+                    "Multi-timeframe data not supplied"
+                ],
+                "timeframes": {},
+            }
+
+        mtf_probs = cls._mtf_probabilities(
+            mtf
+        )
+
+        mtf_available = bool(
+            mtf.get(
+                "available",
+                False,
+            )
+        )
+
+        # ======================================================
+        # COMBINE
+        #
+        # If MTF exists:
+        #
+        # ML        35%
+        # Technical 30%
+        # MTF       35%
+        #
+        # Otherwise:
+        #
+        # ML        60%
+        # Technical 40%
+        # ======================================================
+
+        if mtf_available:
+
+            combined_buy = (
+                ml_probs["BUY"]
+                * cls.ML_WEIGHT
+                + technical_probs["BUY"]
+                * cls.TECHNICAL_WEIGHT
+                + mtf_probs["BUY"]
+                * cls.MTF_WEIGHT
+            )
+
+            combined_hold = (
+                ml_probs["HOLD"]
+                * cls.ML_WEIGHT
+                + technical_probs["HOLD"]
+                * cls.TECHNICAL_WEIGHT
+                + mtf_probs["HOLD"]
+                * cls.MTF_WEIGHT
+            )
+
+            combined_sell = (
+                ml_probs["SELL"]
+                * cls.ML_WEIGHT
+                + technical_probs["SELL"]
+                * cls.TECHNICAL_WEIGHT
+                + mtf_probs["SELL"]
+                * cls.MTF_WEIGHT
+            )
+
+        else:
+
+            combined_buy = (
+                ml_probs["BUY"] * 0.60
+                + technical_probs["BUY"] * 0.40
+            )
+
+            combined_hold = (
+                ml_probs["HOLD"] * 0.60
+                + technical_probs["HOLD"] * 0.40
+            )
+
+            combined_sell = (
+                ml_probs["SELL"] * 0.60
+                + technical_probs["SELL"] * 0.40
+            )
+
+        # ======================================================
+        # NORMALIZE
+        # ======================================================
+
+        total = (
+            combined_buy
+            + combined_hold
+            + combined_sell
+        )
+
+        if total > 0:
+
+            combined_buy = (
+                combined_buy
+                / total
+            ) * 100.0
+
+            combined_hold = (
+                combined_hold
+                / total
+            ) * 100.0
+
+            combined_sell = (
+                combined_sell
+                / total
+            ) * 100.0
+
+        probabilities = {
+            "BUY": round(
+                combined_buy,
+                2,
+            ),
+            "HOLD": round(
+                combined_hold,
+                2,
+            ),
+            "SELL": round(
+                combined_sell,
+                2,
+            ),
+        }
+
+        preliminary_signal = max(
+            probabilities,
+            key=probabilities.get,
+        )
+
+        preliminary_confidence = (
+            probabilities[
+                preliminary_signal
+            ]
+        )
+
+        # ======================================================
+        # TECHNICAL DIRECTION
+        # ======================================================
+
+        technical_direction = (
+            cls._technical_direction(
+                technical,
+                components,
+            )
+        )
+
+        # ======================================================
+        # CONTRADICTIONS
+        # ======================================================
+
+        contradiction_warnings = (
+            cls._detect_contradictions(
+                ml,
+                components,
+                mtf,
+                preliminary_signal,
+            )
+        )
+
+        # ======================================================
+        # FINAL SIGNAL
+        # ======================================================
+
+        final_signal = preliminary_signal
+        final_confidence = (
+            preliminary_confidence
+        )
+
+        blocked = False
+        safety_reasons = []
+
+        candle = components["candle"]
+        volume = components["volume"]
+
+        # ======================================================
+        # FULL MTF BEARISH
+        # ======================================================
+
+        mtf_alignment = mtf.get(
+            "alignment",
+            "NO_DATA",
+        )
+
+        if (
+            final_signal == "BUY"
+            and mtf_alignment
+            == "FULL_BEARISH"
+        ):
+
+            final_signal = "HOLD"
+            final_confidence = max(
+                probabilities["HOLD"],
+                50.0,
+            )
+
+            blocked = True
+
+            safety_reasons.append(
+                "All timeframes are bearish "
+                "against BUY"
+            )
+
+        # ======================================================
+        # FULL MTF BULLISH
+        # ======================================================
+
+        if (
+            final_signal == "SELL"
+            and mtf_alignment
+            == "FULL_BULLISH"
+        ):
+
+            final_signal = "HOLD"
+            final_confidence = max(
+                probabilities["HOLD"],
+                50.0,
+            )
+
+            blocked = True
+
+            safety_reasons.append(
+                "All timeframes are bullish "
+                "against SELL"
+            )
+
+        # ======================================================
+        # VERY STRONG CANDLE
+        # ======================================================
+
+        if (
+            final_signal == "BUY"
+            and candle["signal"] == "BEARISH"
+            and candle["strength"]
+            == "VERY_STRONG"
+        ):
+
+            if final_confidence < 70:
+
+                final_signal = "HOLD"
+
+                final_confidence = max(
+                    probabilities["HOLD"],
+                    50.0,
+                )
+
+                blocked = True
+
+                safety_reasons.append(
+                    "Very strong bearish "
+                    "candlestick opposes BUY"
+                )
+
+        if (
+            final_signal == "SELL"
+            and candle["signal"] == "BULLISH"
+            and candle["strength"]
+            == "VERY_STRONG"
+        ):
+
+            if final_confidence < 70:
+
+                final_signal = "HOLD"
+
+                final_confidence = max(
+                    probabilities["HOLD"],
+                    50.0,
+                )
+
+                blocked = True
+
+                safety_reasons.append(
+                    "Very strong bullish "
+                    "candlestick opposes SELL"
+                )
+
+        # ======================================================
+        # VOLUME
+        # ======================================================
+
+        if (
+            final_signal == "BUY"
+            and volume["signal"] == "BEARISH"
+            and volume["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            if final_confidence < 70:
+
+                final_signal = "HOLD"
+
+                final_confidence = max(
+                    probabilities["HOLD"],
+                    50.0,
+                )
+
+                blocked = True
+
+                safety_reasons.append(
+                    "Volume confirms bearish "
+                    "pressure against BUY"
+                )
+
+        if (
+            final_signal == "SELL"
+            and volume["signal"] == "BULLISH"
+            and volume["strength"]
+            in {
+                "STRONG",
+                "VERY_STRONG",
+            }
+        ):
+
+            if final_confidence < 70:
+
+                final_signal = "HOLD"
+
+                final_confidence = max(
+                    probabilities["HOLD"],
+                    50.0,
+                )
+
+                blocked = True
+
+                safety_reasons.append(
+                    "Volume confirms bullish "
+                    "pressure against SELL"
+                )
+
+        # ======================================================
+        # CONFIDENCE SAFETY
+        # ======================================================
+
+        if (
+            final_confidence
+            < cls.SAFE_CONFIDENCE
+        ):
+
+            blocked = True
+
+            safety_reasons.append(
+                "Decision confidence is below "
+                "safe threshold"
+            )
+
+        # ======================================================
+        # FINAL DIRECTION
+        # ======================================================
+
+        if final_signal == "BUY":
+
+            direction = "UP"
+
+        elif final_signal == "SELL":
+
+            direction = "DOWN"
+
+        else:
+
+            direction = "SIDEWAYS"
+
+        # ======================================================
+        # FINAL STRENGTH
+        # ======================================================
+
+        if final_confidence >= 80:
+
+            final_strength = "VERY_STRONG"
+
+        elif final_confidence >= 70:
+
+            final_strength = "STRONG"
+
+        elif final_confidence >= 60:
+
+            final_strength = "MODERATE"
+
+        else:
+
+            final_strength = "WEAK"
+
+        # ======================================================
+        # REASONS
+        # ======================================================
+
+        reasons = cls._build_reasons(
+            ml,
+            technical,
+            components,
+            mtf,
+            final_signal,
+            final_confidence,
+        )
+
+        for warning in contradiction_warnings:
+
+            if warning not in reasons:
+
+                reasons.append(warning)
+
+        for reason in safety_reasons:
+
+            if reason not in reasons:
+
+                reasons.append(reason)
+
+        # ======================================================
+        # RETURN
+        # ======================================================
+
+        return {
+            "available": True,
+
+            "symbol": symbol,
+
+            "signal": final_signal,
+
+            "direction": direction,
+
+            "strength": final_strength,
+
+            "confidence": round(
+                final_confidence,
+                2,
+            ),
+
+            "probabilities": probabilities,
+
+            "blocked": blocked,
+
+            "reasons": reasons,
+
+            "safety_reasons": safety_reasons,
+
+            "technical_direction": (
+                technical_direction
+            ),
+
+            "ml_signal": cls._safe_text(
+                ml.get(
+                    "signal",
+                    "HOLD",
+                ),
+                "HOLD",
+            ),
+
+            "ml_confidence": round(
+                cls._safe_float(
+                    ml.get(
+                        "confidence",
+                        0.0,
+                    )
+                ),
+                2,
+            ),
+
+            "technical_signal": cls._safe_text(
+                technical.get(
+                    "signal",
+                    "NEUTRAL",
+                )
+            ),
+
+            "technical_score": round(
+                technical_score,
+                2,
+            ),
+
+            "technical_percent": round(
+                technical_percent,
+                2,
+            ),
+
+            "bullish_components": (
+                bullish_count
+            ),
+
+            "bearish_components": (
+                bearish_count
+            ),
+
+            "neutral_components": (
+                neutral_count
+            ),
+
+            "components": components,
+
+            "technical": technical,
+
+            "ml": ml,
+
+            "multi_timeframe": mtf,
+
+            "mtf_signal": cls._safe_text(
+                mtf.get(
+                    "signal",
+                    "NEUTRAL",
+                )
+            ),
+
+            "mtf_alignment": mtf.get(
+                "alignment",
+                "NO_DATA",
+            ),
+
+            "mtf_confidence": round(
+                max(
+                    mtf_probs.values()
+                ),
+                2,
+            ),
+
+            "contradictions": (
+                contradiction_warnings
+            ),
+        }

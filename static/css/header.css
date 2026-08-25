@@ -1,0 +1,188 @@
+.market-bar{
+
+    display:flex;
+    gap:15px;
+    overflow-x:auto;
+    margin-bottom:20px;
+}
+
+.market-item{
+
+    min-width:170px;
+    background:#1b263b;
+    border-radius:12px;
+    padding:15px;
+}
+
+.market-item span{
+
+    color:#94a3b8;
+    font-size:13px;
+}
+
+.market-item strong{
+
+    display:block;
+    color:white;
+    font-size:20px;
+    margin-top:6px;
+}
+
+.market-item small{
+
+    display:block;
+    margin-top:8px;
+    font-weight:600;
+}
+
+.positive small{
+
+    color:#22c55e;
+}
+
+.negative small{
+
+    color:#ef4444;
+}
+
+.header{
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:25px;
+}
+
+.search-container{
+
+    display:flex;
+    gap:12px;
+    width:70%;
+}
+
+.search-container input{
+
+    flex:1;
+    padding:15px;
+    background:#1b263b;
+    color:white;
+    border:none;
+    border-radius:10px;
+    outline:none;
+}
+
+.search-container button{
+
+    padding:15px 28px;
+    background:#2563eb;
+    color:white;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+.header-icons{
+
+    display:flex;
+    gap:10px;
+}
+
+.header-icons button{
+
+    width:48px;
+    height:48px;
+    background:#1b263b;
+    color:white;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.header-icons button:hover{
+
+    background:#2563eb;
+}
+/* =====================================
+   PROFILE / LOGOUT MENU
+===================================== */
+
+.profile-menu{
+    position:relative;
+}
+
+.profile-menu #profileBtn{
+    width:auto;
+    min-width:48px;
+    padding:0 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.profile-username{
+    font-size:13px;
+    font-weight:600;
+    color:#e2e8f0;
+    text-transform:capitalize;
+}
+
+.profile-dropdown{
+    position:absolute;
+    right:0;
+    top:56px;
+    min-width:200px;
+    background:#1b263b;
+    border:1px solid #263247;
+    border-radius:12px;
+    padding:10px;
+    box-shadow:0 12px 30px rgba(0,0,0,.4);
+    opacity:0;
+    visibility:hidden;
+    transform:translateY(-6px);
+    transition:.18s ease;
+    z-index:50;
+}
+
+.profile-dropdown.open{
+    opacity:1;
+    visibility:visible;
+    transform:translateY(0);
+}
+
+.profile-dropdown-user{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    color:#94a3b8;
+    font-size:13px;
+    border-bottom:1px solid #263247;
+    margin-bottom:6px;
+    text-transform:capitalize;
+}
+
+.profile-dropdown-user i{
+    font-size:20px;
+    color:#38bdf8;
+}
+
+.logout-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px;
+    background:transparent;
+    color:#f87171;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600;
+    transition:.2s;
+}
+
+.logout-btn:hover{
+    background:rgba(248,113,113,.12);
+}

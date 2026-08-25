@@ -1,0 +1,90 @@
+<div class="chart-card">
+
+    <div class="chart-header">
+
+        <div class="left-tools">
+
+            <select id="timeframe">
+
+    <option value="1m">1 Minute</option>
+
+    <option value="5m">5 Minutes</option>
+
+    <option value="15m">15 Minutes</option>
+
+    <option value="30m">30 Minutes</option>
+
+    <option value="60m">1 Hour</option>
+
+    <option value="4h">4 Hours</option>
+
+    <option value="1d" selected>1 Day</option>
+
+    <option value="1wk">1 Week</option>
+
+    <option value="1mo">1 Month</option>
+
+</select>
+
+            <select id="chartType">
+                <option value="candlestick">Candlestick</option>
+                <option value="line">Line</option>
+                <option value="area">Area</option>
+                <option value="bar">Bar</option>
+                <option value="heikin">Heikin Ashi</option>
+            </select>
+
+            <select id="indicator" multiple>
+                <option selected>EMA 20</option>
+                <option selected>EMA 50</option>
+                <option>EMA 200</option>
+                <option>RSI</option>
+                <option>MACD</option>
+                <option>Bollinger Band</option>
+                <option>VWAP</option>
+                <option>Supertrend</option>
+                <option>ADX</option>
+                <option>ATR</option>
+            </select>
+
+        </div>
+
+        <div class="right-tools">
+
+            <button id="compareBtn">
+                <i class="fa-solid fa-code-compare"></i>
+            </button>
+
+            <button id="refreshChart">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+
+            <button id="fullscreen">
+                <i class="fa-solid fa-expand"></i>
+            </button>
+
+        </div>
+
+    </div>
+
+    <div id="tradingChart"></div>
+
+    <div class="trade-level-legend" id="tradeLevelLegend">
+        <span><i class="legend-swatch entry-up"></i>Entry (BUY)</span>
+        <span><i class="legend-swatch entry-down"></i>Entry (SELL)</span>
+        <span><i class="legend-swatch sl"></i>Stop Loss</span>
+        <span><i class="legend-swatch t1"></i>Target 1</span>
+        <span><i class="legend-swatch t2"></i>Target 2</span>
+    </div>
+
+    <div class="chart-panes">
+
+        <div id="volumePane" class="chart-pane"></div>
+
+        <div id="rsiPane" class="chart-pane"></div>
+
+        <div id="macdPane" class="chart-pane"></div>
+
+    </div>
+
+</div>

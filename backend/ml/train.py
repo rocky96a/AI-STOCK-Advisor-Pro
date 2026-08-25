@@ -1,0 +1,988 @@
+import numpy as np
+import warnings
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix,
+)
+
+from backend.ml.dataset import DatasetBuilder
+from backend.ml.model_manager import ModelManager
+
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+MIN_TRAIN_SIZE = 160
+TEST_SIZE = 20
+
+MIN_CONFIDENCE = 0.55
+
+BROKERAGE_COST = 0.00025
+SLIPPAGE_COST = 0.00025
+
+ROUND_TRIP_COST = (
+    BROKERAGE_COST
+    + SLIPPAGE_COST
+)
+
+CLASS_LABELS = np.array([0, 1, 2])
+
+
+# ============================================================
+# WALK-FORWARD SPLITS
+# ============================================================
+
+def walk_forward_splits(n_samples):
+    """
+    Expanding-window walk-forward validation.
+
+    Train:
+        0 -> 160
+    Test:
+        160 -> 180
+
+    Then:
+
+    Train:
+        0 -> 180
+    Test:
+        180 -> 200
+
+    Chronological order is always preserved.
+    """
+
+    start = MIN_TRAIN_SIZE
+
+    while start < n_samples:
+
+        end = min(
+            start + TEST_SIZE,
+            n_samples,
+        )
+
+        if end <= start:
+            break
+
+        yield (
+            np.arange(0, start),
+            np.arange(start, end),
+        )
+
+        start = end
+
+
+# ============================================================
+# MODEL
+# ============================================================
+
+def create_model():
+
+    return RandomForestClassifier(
+        n_estimators=500,
+        max_depth=10,
+        min_samples_leaf=3,
+
+        # Important for the highly imbalanced:
+        # HOLD >> BUY/SELL dataset.
+        class_weight="balanced_subsample",
+
+        random_state=42,
+        n_jobs=-1,
+    )
+
+
+# ============================================================
+# CONFIDENCE
+# ============================================================
+
+def get_confidence(model, X):
+
+    probabilities = model.predict_proba(X)
+
+    model_classes = np.asarray(
+        model.classes_,
+        dtype=int,
+    )
+
+    best_positions = probabilities.argmax(
+        axis=1
+    )
+
+    predictions = model_classes[
+        best_positions
+    ]
+
+    confidence = probabilities.max(
+        axis=1
+    )
+
+    # Convert probabilities into a fixed
+    # [SELL, HOLD, BUY] representation.
+    full_probabilities = np.zeros(
+        (len(X), len(CLASS_LABELS)),
+        dtype=float,
+    )
+
+    for position, class_label in enumerate(
+        model_classes
+    ):
+
+        class_index = int(class_label)
+
+        if class_index in CLASS_LABELS:
+
+            target_position = int(
+                np.where(
+                    CLASS_LABELS == class_index
+                )[0][0]
+            )
+
+            full_probabilities[
+                :,
+                target_position
+            ] = probabilities[
+                :,
+                position
+            ]
+
+    return (
+        predictions,
+        confidence,
+        full_probabilities,
+    )
+
+
+# ============================================================
+# TRADE SIMULATION
+# ==========================================================
+def evaluate_predictions(
+    predictions,
+    confidence,
+    trade_returns=None,
+):
+    """
+    Evaluate only confident BUY/SELL predictions.
+
+    HOLD predictions are not trades.
+
+    TRADE_RETURN is already net of transaction costs
+    because LabelBuilder._simulate_trade() subtracts
+    LabelBuilder.ROUND_TRIP_COST.
+
+    Therefore transaction costs must NOT be deducted again here.
+    """
+
+    trades = []
+
+    for i in range(len(predictions)):
+
+        prediction = int(
+            predictions[i]
+        )
+
+        conf = float(
+            confidence[i]
+        )
+
+        # Ignore low-confidence predictions.
+        if conf < MIN_CONFIDENCE:
+            continue
+
+        # HOLD is not a trade.
+        if prediction == 1:
+            continue
+
+        if trade_returns is None:
+            continue
+
+        # TRADE_RETURN is already net.
+        net_return = float(
+            trade_returns[i]
+        )
+
+        trades.append(
+            {
+                "prediction": prediction,
+                "confidence": conf,
+                "return": net_return,
+            }
+        )
+
+    if not trades:
+
+        return {
+            "trades": 0,
+            "win_rate": 0.0,
+            "average_return": 0.0,
+            "expectancy": 0.0,
+            "profit_factor": 0.0,
+            "max_drawdown": 0.0,
+        }
+
+    returns = np.array(
+        [
+            trade["return"]
+            for trade in trades
+        ],
+        dtype=float,
+    )
+
+    wins = returns[
+        returns > 0
+    ]
+
+    losses = returns[
+        returns < 0
+    ]
+
+    win_rate = (
+        len(wins)
+        / len(returns)
+        * 100.0
+    )
+
+    average_return = float(
+        returns.mean() * 100.0
+    )
+
+    expectancy = average_return
+
+    gross_profit = (
+        float(wins.sum())
+        if len(wins)
+        else 0.0
+    )
+
+    gross_loss = (
+        abs(float(losses.sum()))
+        if len(losses)
+        else 0.0
+    )
+
+    if gross_loss > 0:
+
+        profit_factor = (
+            gross_profit
+            / gross_loss
+        )
+
+    else:
+
+        profit_factor = (
+            float("inf")
+            if gross_profit > 0
+            else 0.0
+        )
+
+    # Equity curve in return units.
+    equity = np.cumsum(
+        returns
+    )
+
+    running_max = np.maximum.accumulate(
+        equity
+    )
+
+    drawdown = (
+        equity
+        - running_max
+    )
+
+    max_drawdown = (
+        abs(float(drawdown.min()))
+        * 100.0
+    )
+
+    return {
+        "trades": len(returns),
+
+        "win_rate": round(
+            win_rate,
+            2,
+        ),
+
+        "average_return": round(
+            average_return,
+            4,
+        ),
+
+        "expectancy": round(
+            expectancy,
+            4,
+        ),
+
+        "profit_factor": (
+            round(
+                float(profit_factor),
+                3,
+            )
+            if np.isfinite(
+                profit_factor
+            )
+            else "inf"
+        ),
+
+        "max_drawdown": round(
+            max_drawdown,
+            4,
+        ),
+    }
+
+
+# ============================================================
+# CLASSIFICATION METRICS
+# ============================================================
+
+def calculate_metrics(
+    y_true,
+    y_pred,
+):
+    """
+    Calculate metrics using a fixed class order:
+
+        0 = SELL
+        1 = HOLD
+        2 = BUY
+
+    zero_division=0 prevents warnings when a class is absent
+    from a particular test window or is never predicted.
+    """
+
+    y_true = np.asarray(
+        y_true,
+        dtype=int,
+    )
+
+    y_pred = np.asarray(
+        y_pred,
+        dtype=int,
+    )
+
+    accuracy = accuracy_score(
+        y_true,
+        y_pred,
+    )
+
+    with warnings.catch_warnings():
+         warnings.filterwarnings(
+        "ignore",
+        message=".*y_pred contains classes not in y_true.*",
+        category=UserWarning,
+    )
+    warnings.filterwarnings(
+        "ignore",
+        message=".*A single label was found in.*",
+        category=UserWarning,
+    )
+
+    balanced_accuracy = balanced_accuracy_score(
+        y_true,
+        y_pred,
+    )
+
+    precision = precision_score(
+        y_true,
+        y_pred,
+        labels=CLASS_LABELS,
+        average="weighted",
+        zero_division=0,
+    )
+
+    recall = recall_score(
+        y_true,
+        y_pred,
+        labels=CLASS_LABELS,
+        average="weighted",
+        zero_division=0,
+    )
+
+    f1 = f1_score(
+        y_true,
+        y_pred,
+        labels=CLASS_LABELS,
+        average="weighted",
+        zero_division=0,
+    )
+
+    matrix = confusion_matrix(
+        y_true,
+        y_pred,
+        labels=CLASS_LABELS,
+    )
+
+    per_class_precision = (
+        precision_score(
+            y_true,
+            y_pred,
+            labels=CLASS_LABELS,
+            average=None,
+            zero_division=0,
+        )
+    )
+
+    per_class_recall = (
+        recall_score(
+            y_true,
+            y_pred,
+            labels=CLASS_LABELS,
+            average=None,
+            zero_division=0,
+        )
+    )
+
+    per_class_f1 = (
+        f1_score(
+            y_true,
+            y_pred,
+            labels=CLASS_LABELS,
+            average=None,
+            zero_division=0,
+        )
+    )
+
+    per_class_metrics = {}
+
+    for position, label in enumerate(
+        CLASS_LABELS
+    ):
+
+        per_class_metrics[
+            str(int(label))
+        ] = {
+            "precision": round(
+                float(
+                    per_class_precision[
+                        position
+                    ] * 100.0
+                ),
+                2,
+            ),
+
+            "recall": round(
+                float(
+                    per_class_recall[
+                        position
+                    ] * 100.0
+                ),
+                2,
+            ),
+
+            "f1": round(
+                float(
+                    per_class_f1[
+                        position
+                    ] * 100.0
+                ),
+                2,
+            ),
+        }
+
+    return {
+        "accuracy": round(
+            float(accuracy * 100.0),
+            2,
+        ),
+
+        "balanced_accuracy": round(
+            float(
+                balanced_accuracy
+                * 100.0
+            ),
+            2,
+        ),
+
+        "precision": round(
+            float(precision * 100.0),
+            2,
+        ),
+
+        "recall": round(
+            float(recall * 100.0),
+            2,
+        ),
+
+        "f1": round(
+            float(f1 * 100.0),
+            2,
+        ),
+
+        "confusion_matrix": (
+            matrix.astype(int).tolist()
+        ),
+
+        "per_class_metrics": (
+            per_class_metrics
+        ),
+    }
+
+
+# ============================================================
+# SAFE LABEL DISTRIBUTION
+# ============================================================
+
+def label_distribution(values):
+
+    values = np.asarray(
+        values,
+        dtype=int,
+    )
+
+    return {
+        str(int(label)): int(
+            np.sum(values == label)
+        )
+        for label in CLASS_LABELS
+    }
+
+
+# ============================================================
+# TRAIN
+# ============================================================
+
+def train_model(symbol):
+
+    builder = DatasetBuilder()
+
+    full_dataset = builder.create(
+        symbol
+    )
+
+    if (
+        full_dataset is None
+        or full_dataset.empty
+    ):
+
+        return {
+            "success": False,
+            "message": "Dataset not found",
+        }
+
+    # --------------------------------------------------------
+    # Canonical dataset
+    # --------------------------------------------------------
+
+    full_dataset = (
+        full_dataset
+        .replace(
+            [np.inf, -np.inf],
+            np.nan,
+        )
+        .reset_index(drop=True)
+    )
+
+    required = (
+        builder.FEATURE_COLUMNS
+        + [
+            "LABEL",
+            "TRADE_RETURN",
+        ]
+    )
+
+    missing = [
+        column
+        for column in required
+        if column not in full_dataset.columns
+    ]
+
+    if missing:
+
+        return {
+            "success": False,
+            "message": (
+                f"Missing dataset columns: "
+                f"{missing}"
+            ),
+        }
+
+    # --------------------------------------------------------
+    # Keep only rows valid for BOTH ML and trade evaluation.
+    # --------------------------------------------------------
+
+    valid_features = (
+        full_dataset[
+            builder.FEATURE_COLUMNS
+        ]
+        .notna()
+        .all(axis=1)
+    )
+
+    valid_labels = (
+        full_dataset[
+            "LABEL"
+        ].notna()
+    )
+
+    valid_returns = (
+        full_dataset[
+            "TRADE_RETURN"
+        ].notna()
+    )
+
+    valid = (
+        valid_features
+        & valid_labels
+        & valid_returns
+    )
+
+    full_dataset = (
+        full_dataset
+        .loc[valid]
+        .reset_index(drop=True)
+    )
+
+    X = full_dataset[
+        builder.FEATURE_COLUMNS
+    ].copy()
+
+    y = (
+        full_dataset[
+            "LABEL"
+        ]
+        .astype(int)
+        .copy()
+    )
+
+    trade_returns = (
+        full_dataset[
+            "TRADE_RETURN"
+        ]
+        .astype(float)
+        .copy()
+    )
+
+    if len(X) < MIN_TRAIN_SIZE:
+
+        return {
+            "success": False,
+            "message": (
+                f"Not enough samples. "
+                f"Need at least "
+                f"{MIN_TRAIN_SIZE}, "
+                f"got {len(X)}."
+            ),
+        }
+
+    # --------------------------------------------------------
+    # Walk-forward validation
+    # --------------------------------------------------------
+
+    all_predictions = []
+    all_confidence = []
+    all_actual = []
+    all_returns = []
+
+    folds = []
+
+    for fold_number, (
+        train_idx,
+        test_idx,
+    ) in enumerate(
+        walk_forward_splits(len(X)),
+        start=1,
+    ):
+
+        X_train = X.iloc[
+            train_idx
+        ]
+
+        y_train = y.iloc[
+            train_idx
+        ]
+
+        X_test = X.iloc[
+            test_idx
+        ]
+
+        y_test = y.iloc[
+            test_idx
+        ]
+
+        returns_test = (
+            trade_returns.iloc[
+                test_idx
+            ]
+        )
+
+        # ----------------------------------------------------
+        # Historical class availability
+        # ----------------------------------------------------
+
+        train_classes = sorted(
+            int(x)
+            for x in y_train.unique()
+        )
+
+        test_classes = sorted(
+            int(x)
+            for x in y_test.unique()
+        )
+
+        model = create_model()
+
+        model.fit(
+            X_train,
+            y_train,
+        )
+
+        (
+            predictions,
+            confidence,
+            probabilities,
+        ) = get_confidence(
+            model,
+            X_test,
+        )
+
+        # ----------------------------------------------------
+        # Store OOS predictions
+        # ----------------------------------------------------
+
+        all_predictions.extend(
+            predictions.tolist()
+        )
+
+        all_confidence.extend(
+            confidence.tolist()
+        )
+
+        all_actual.extend(
+            y_test.to_numpy(
+                dtype=int
+            ).tolist()
+        )
+
+        all_returns.extend(
+            returns_test.to_numpy(
+                dtype=float
+            ).tolist()
+        )
+
+        # ----------------------------------------------------
+        # Fold classification metrics
+        # ----------------------------------------------------
+
+        fold_metrics = calculate_metrics(
+            y_test,
+            predictions,
+        )
+
+        folds.append(
+            {
+                "fold": fold_number,
+
+                "train_samples": int(
+                    len(train_idx)
+                ),
+
+                "test_samples": int(
+                    len(test_idx)
+                ),
+
+                "train_labels": (
+                    label_distribution(
+                        y_train
+                    )
+                ),
+
+                "test_labels": (
+                    label_distribution(
+                        y_test
+                    )
+                ),
+
+                "train_classes": (
+                    train_classes
+                ),
+
+                "test_classes": (
+                    test_classes
+                ),
+
+                "predicted_labels": (
+                    label_distribution(
+                        predictions
+                    )
+                ),
+
+                "accuracy": (
+                    fold_metrics[
+                        "accuracy"
+                    ]
+                ),
+
+                "balanced_accuracy": (
+                    fold_metrics[
+                        "balanced_accuracy"
+                    ]
+                ),
+            }
+        )
+
+    # ========================================================
+    # OUT-OF-SAMPLE METRICS
+    # ========================================================
+
+    all_predictions = np.asarray(
+        all_predictions,
+        dtype=int,
+    )
+
+    all_confidence = np.asarray(
+        all_confidence,
+        dtype=float,
+    )
+
+    all_actual = np.asarray(
+        all_actual,
+        dtype=int,
+    )
+
+    all_returns = np.asarray(
+        all_returns,
+        dtype=float,
+    )
+
+    metrics = calculate_metrics(
+        all_actual,
+        all_predictions,
+    )
+
+    # ========================================================
+    # OUT-OF-SAMPLE TRADE METRICS
+    # ========================================================
+
+    trade_metrics = evaluate_predictions(
+        predictions=all_predictions,
+        confidence=all_confidence,
+        trade_returns=all_returns,
+    )
+
+       # ========================================================
+    # PRODUCTION MODEL
+    #
+    # Train on the COMPLETE historical dataset after
+    # walk-forward validation is finished.
+    # ========================================================
+
+    production_model = create_model()
+
+    production_model.fit(
+        X,
+        y,
+    )
+
+    # --------------------------------------------------------
+    # Save production model.
+    # --------------------------------------------------------
+
+    manager = ModelManager()
+
+    model_saved = False
+    model_path = None
+
+    try:
+
+        model_path = manager.save(
+         production_model,
+         "random_forest",
+         symbol=symbol,
+       )
+
+        model_saved = True
+
+    except Exception as exc:
+
+        print(
+            f"[Training] Failed to save model: {exc}"
+        )
+
+    # ========================================================
+    # FINAL RESULT
+    # ========================================================
+
+    result = {
+        "success": True,
+
+        "model": "Random Forest",
+
+        "validation": "Walk-Forward",
+
+        "samples": int(
+            len(X)
+        ),
+
+        "oos_samples": int(
+            len(all_actual)
+        ),
+
+        "features": int(
+            len(builder.FEATURE_COLUMNS)
+        ),
+
+        "feature_columns": list(
+            builder.FEATURE_COLUMNS
+        ),
+
+        "accuracy": metrics[
+            "accuracy"
+        ],
+
+        "balanced_accuracy": metrics[
+            "balanced_accuracy"
+        ],
+
+        "precision": metrics[
+            "precision"
+        ],
+
+        "recall": metrics[
+            "recall"
+        ],
+
+        "f1": metrics[
+            "f1"
+        ],
+
+        "confusion_matrix": metrics[
+            "confusion_matrix"
+        ],
+
+        "per_class_metrics": metrics[
+            "per_class_metrics"
+        ],
+
+        "trade_metrics": trade_metrics,
+
+        "folds": folds,
+
+        "label_distribution": (
+            label_distribution(y)
+        ),
+
+        "confidence_threshold": (
+            MIN_CONFIDENCE
+        ),
+
+        "transaction_cost": (
+            ROUND_TRIP_COST
+        ),
+
+        "model_saved": model_saved,
+
+        "model_path": model_path,
+
+        "message": (
+            "Walk-forward validation "
+            "completed successfully. "
+            "Production Random Forest "
+            "trained on the full dataset."
+        ),
+    }
+
+    return result 

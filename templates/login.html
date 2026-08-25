@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOYMAATARA — Sign In</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+
+<body>
+
+    <div class="hive-bg">
+        <svg class="hive-grid" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+                <pattern id="hex" width="8.66" height="10" patternUnits="userSpaceOnUse" patternTransform="scale(1)">
+                    <polygon points="4.33,0 8.66,2.5 8.66,7.5 4.33,10 0,7.5 0,2.5"
+                        fill="none" stroke="currentColor" stroke-width="0.12" />
+                </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#hex)" />
+        </svg>
+        <div class="scan-line"></div>
+    </div>
+
+    <!-- ================= BOOT SEQUENCE ================= -->
+    <div id="bootScreen" class="boot-screen">
+
+        <div class="boot-core">
+            <svg class="hive-core" viewBox="0 0 200 200">
+                <polygon class="hex-ring hex-ring-1" points="100,10 173,55 173,145 100,190 27,145 27,55" />
+                <polygon class="hex-ring hex-ring-2" points="100,35 151,65 151,135 100,165 49,135 49,65" />
+                <polygon class="hex-ring hex-ring-3" points="100,60 129,77.5 129,122.5 100,140 71,122.5 71,77.5" />
+                <circle class="core-pulse" cx="100" cy="100" r="14" />
+            </svg>
+            <div class="boot-percent" id="bootPercent">0%</div>
+        </div>
+
+        <div class="boot-title">
+            <span class="boot-brand">AI-STOCK-Advisor-Pro</span>
+            <span class="boot-tagline">INTELLIGENCE&nbsp;CORE</span>
+        </div>
+
+        <div class="boot-log" id="bootLog"></div>
+
+        <div class="boot-bar-track">
+            <div class="boot-bar-fill" id="bootBarFill"></div>
+        </div>
+
+        <div class="boot-future-line" id="bootFutureLine"></div>
+    </div>
+
+    <!-- ================= LOGIN CARD ================= -->
+    <div id="loginScreen" class="login-screen">
+
+        <div class="login-card">
+
+            <div class="login-brand">
+                <svg class="brand-hex" viewBox="0 0 200 200">
+                    <polygon class="hex-ring hex-ring-2" points="100,35 151,65 151,135 100,165 49,135 49,65" />
+                    <polygon class="hex-ring hex-ring-3" points="100,60 129,77.5 129,122.5 100,140 71,122.5 71,77.5" />
+                    <circle class="core-pulse" cx="100" cy="100" r="10" />
+                </svg>
+                <div class="brand-text">
+                    <h1>AI-STOCK-Advisor-Pro</h1>
+                    <p>AI Market Intelligence Dashboard</p>
+                </div>
+            </div>
+
+            <form id="loginForm" class="login-form" autocomplete="off">
+
+                <div class="form-field">
+                    <label for="username">Username</label>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="username" name="username" placeholder="admin" autocomplete="username" required>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label for="password">Password</label>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" id="togglePassword" class="toggle-password" tabindex="-1">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loginError" class="login-error" hidden></div>
+
+                <button type="submit" id="loginSubmit" class="login-submit">
+                    <span class="btn-label">Authenticate</span>
+                    <span class="btn-spinner" hidden></span>
+                </button>
+
+                <p class="login-hint">
+                    First time here? <a href="#" id="showRegister">Create an account</a>
+                </p>
+
+            </form>
+
+            <form id="registerForm" class="login-form" autocomplete="off" hidden>
+
+                <div class="form-field">
+                    <label for="regUsername">Choose a username</label>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <input type="text" id="regUsername" name="regUsername" autocomplete="username" required>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label for="regPassword">Choose a password</label>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="regPassword" name="regPassword" autocomplete="new-password" minlength="6" required>
+                    </div>
+                </div>
+
+                <div id="registerError" class="login-error" hidden></div>
+
+                <button type="submit" id="registerSubmit" class="login-submit">
+                    <span class="btn-label">Create Account</span>
+                    <span class="btn-spinner" hidden></span>
+                </button>
+
+                <p class="login-hint">
+                    Already have an account? <a href="#" id="showLogin">Sign in</a>
+                </p>
+
+            </form>
+
+            <div class="login-footer">
+                <i class="fa-solid fa-shield-halved"></i>
+                Token-secured session · No API access before authentication
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+</body>
+
+</html>
